@@ -33,23 +33,26 @@ class AudioPlayer:
         self._playing = False
         self._stop_event = threading.Event()
         self._current_thread: threading.Thread | None = None
+        self._lock = threading.Lock()
 
     @property
     def is_playing(self) -> bool:
-        return self._playing
+        with self._lock:
+            return self._playing
 
     def play_wav_bytes(self, wav_bytes: bytes, on_finished=None):
         """Play WAV audio data in a background thread."""
-        if self._playing:
-            self.stop()
+        self.stop()
 
-        self._stop_event.clear()
-        self._current_thread = threading.Thread(
-            target=self._play_worker,
-            args=(wav_bytes, on_finished),
-            daemon=True,
-        )
-        self._current_thread.start()
+        with self._lock:
+            self._stop_event.clear()
+            self._playing = True
+            self._current_thread = threading.Thread(
+                target=self._play_worker,
+                args=(wav_bytes, on_finished),
+                daemon=True,
+            )
+            self._current_thread.start()
 
     def play_base64_wav(self, b64_audio: str, on_finished=None):
         """Play base64-encoded WAV audio."""
@@ -58,8 +61,11 @@ class AudioPlayer:
 
     def stop(self):
         """Stop current playback."""
-        self._stop_event.set()
-        self._playing = False
+        with self._lock:
+            if not self._playing:
+                return
+            self._stop_event.set()
+            self._playing = False
         try:
             sd = _get_sd()
             sd.stop()
@@ -69,7 +75,6 @@ class AudioPlayer:
     def _play_worker(self, wav_bytes: bytes, on_finished=None):
         """Worker thread for audio playback."""
         sd = _get_sd()
-        self._playing = True
 
         try:
             buf = io.BytesIO(wav_bytes)
@@ -102,6 +107,10 @@ class AudioPlayer:
         except Exception as e:
             logger.error(f"Audio playback error: {e}")
         finally:
-            self._playing = False
-            if on_finished and not self._stop_event.is_set():
+            should_call_on_finished = False
+            with self._lock:
+                if self._current_thread == threading.current_thread():
+                    self._playing = False
+                    should_call_on_finished = not self._stop_event.is_set()
+            if on_finished and should_call_on_finished:
                 on_finished()

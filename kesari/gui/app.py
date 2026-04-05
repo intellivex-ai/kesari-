@@ -28,10 +28,10 @@ def create_application(argv: list[str] | None = None) -> QApplication:
     # ── Font ──────────────────────────────────────────────
     # Try to load Inter; fall back to Segoe UI (Windows) or system default
     font_id = QFontDatabase.addApplicationFont(":/fonts/Inter-Variable.ttf")
-    if font_id >= 0:
-        families = QFontDatabase.applicationFontFamilies(font_id)
-        if families:
-            app.setFont(QFont(families[0], 10))
+    families = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
+    
+    if families:
+        app.setFont(QFont(families[0], 10))
     else:
         # Fallback
         fallback = QFont("Segoe UI", 10)

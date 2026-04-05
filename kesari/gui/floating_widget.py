@@ -100,7 +100,8 @@ class FloatingWidget(QWidget):
 
     def show_centered(self):
         """Show the widget centered on screen with fade-in."""
-        screen = QWidget().screen() if not self.screen() else self.screen()
+        from PySide6.QtGui import QGuiApplication
+        screen = QGuiApplication.primaryScreen()
         if screen:
             geo = screen.availableGeometry()
             x = geo.x() + (geo.width() - self.width()) // 2
@@ -121,6 +122,10 @@ class FloatingWidget(QWidget):
         """Hide with fade-out."""
         self._fade_anim.setStartValue(1.0)
         self._fade_anim.setEndValue(0.0)
+        try:
+            self._fade_anim.finished.disconnect()
+        except RuntimeError:
+            pass
         self._fade_anim.finished.connect(self.hide)
         self._fade_anim.start()
 

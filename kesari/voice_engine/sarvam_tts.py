@@ -25,6 +25,8 @@ class SarvamTTS:
 
     def _ensure_client(self):
         """Lazily create the Sarvam client."""
+        if self._client is not None:
+            return
         if not self._api_key:
             raise ValueError("Sarvam API key not set. Go to Settings → API Keys.")
         try:
@@ -58,7 +60,11 @@ class SarvamTTS:
             if hasattr(response, "audio_content"):
                 audio_b64 = response.audio_content
             elif isinstance(response, dict):
-                audio_b64 = response.get("audio_content") or response.get("audios", [None])[0]
+                audios = response.get("audios")
+                if audios and isinstance(audios, list):
+                    audio_b64 = audios[0]
+                else:
+                    audio_b64 = response.get("audio_content")
 
             if audio_b64:
                 return base64.b64decode(audio_b64)
@@ -70,9 +76,9 @@ class SarvamTTS:
             logger.warning(f"Unexpected TTS response format: {type(response)}")
             return b""
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         audio_bytes = await loop.run_in_executor(None, _sync_synthesize)
-        logger.info(f"TTS generated {len(audio_bytes)} bytes for: {text[:50]}...")
+        logger.info(f"TTS generated {len(audio_bytes)} bytes")
         return audio_bytes
 
     def set_language(self, language: str):

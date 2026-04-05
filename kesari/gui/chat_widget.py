@@ -93,7 +93,7 @@ class MessageBubble(QWidget):
                 f'<pre style="background-color: #1a1a2e; border: 1px solid rgba(255,255,255,0.08); '
                 f'border-radius: 8px; padding: 10px 12px; font-family: Consolas, monospace; '
                 f'font-size: 12px; color: #c4c4d4; margin: 6px 0; white-space: pre-wrap;">'
-                f'{m.group(2)}</pre>'
+                f'{m.group(2).replace(chr(10), "&#10;")}</pre>'
             ),
             t,
             flags=re.DOTALL,
@@ -230,7 +230,9 @@ class ChatWidget(QWidget):
         for i in reversed(range(self._chat_layout.count())):
             item = self._chat_layout.itemAt(i)
             if item and item.widget():
-                item.widget().setParent(None)
+                w = item.widget()
+                w.setParent(None)
+                w.deleteLater()
         self._bubbles.clear()
         self._current_ai_bubble = None
         self._chat_layout.addStretch()

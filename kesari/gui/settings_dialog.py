@@ -107,12 +107,12 @@ class SettingsDialog(QDialog):
             "mistralai/mistral-large",
         ])
         current_model = settings.get("default_model", "openai/gpt-4o")
+        self._model_combo.setEditable(True)
         idx = self._model_combo.findText(current_model)
         if idx >= 0:
             self._model_combo.setCurrentIndex(idx)
         else:
             self._model_combo.setEditText(current_model)
-        self._model_combo.setEditable(True)
         model_layout.addRow("Default Model:", self._model_combo)
 
         tabs.addTab(model_tab, "🤖 Model")

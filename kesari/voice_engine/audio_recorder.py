@@ -102,7 +102,7 @@ class AudioRecorder:
         self._frames.clear()
 
         # Convert float32 to int16
-        audio_int16 = (audio_data * 32767).astype(np.int16)
+        audio_int16 = (np.clip(audio_data, -1.0, 1.0) * 32767).astype(np.int16)
 
         # Write to WAV buffer
         buf = io.BytesIO()

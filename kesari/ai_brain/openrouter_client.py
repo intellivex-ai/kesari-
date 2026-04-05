@@ -26,6 +26,8 @@ class OpenRouterClient:
 
     def _ensure_client(self):
         """Lazily create the OpenAI client pointed at OpenRouter."""
+        if self._client is not None:
+            return
         api_key = settings.get("openrouter_api_key", "")
         if not api_key:
             raise ValueError(
@@ -58,6 +60,7 @@ class OpenRouterClient:
     def add_assistant_message(self, content: str):
         """Add an assistant message to the conversation history."""
         self._conversation.append({"role": "assistant", "content": content})
+        self._trim_history()
 
     def add_tool_result(self, tool_call_id: str, name: str, content: str):
         """Add a tool result back into the conversation."""
@@ -67,11 +70,15 @@ class OpenRouterClient:
             "name": name,
             "content": content,
         })
+        self._trim_history()
 
     def _trim_history(self):
         """Keep conversation within the sliding window."""
         if len(self._conversation) > MAX_CONTEXT_MESSAGES:
             self._conversation = self._conversation[-MAX_CONTEXT_MESSAGES:]
+            # Ensure we don't start the window with orphaned tool results
+            while self._conversation and self._conversation[0].get("role") == "tool":
+                self._conversation.pop(0)
 
     def _build_messages(self) -> list[dict]:
         """Build the full message list: system + conversation."""
@@ -159,6 +166,7 @@ class OpenRouterClient:
                             for i in sorted(tool_calls_accumulator.keys())
                         ],
                     })
+                    self._trim_history()
                     # Now yield the tool call events for the UI/executor
                     for idx in sorted(tool_calls_accumulator.keys()):
                         tc_data = tool_calls_accumulator[idx]

@@ -51,17 +51,22 @@ class WorkflowEngine:
             if on_step_start:
                 on_step_start(i, step)
 
+            import json
             try:
-                import json
                 result_str = await self._router.execute(
                     step.tool_name,
                     json.dumps(step.args),
                 )
+            except Exception as e:
+                step.result = {"status": "error", "message": f"Execution error: {str(e)}"}
+                step.status = "error"
+
+            try:
                 step.result = json.loads(result_str) if result_str else {}
                 step.status = "success" if step.result.get("status") != "error" else "error"
-            except Exception as e:
-                step.result = {"status": "error", "message": str(e)}
-                step.status = "error"
+            except json.JSONDecodeError:
+                step.result = {"status": "success", "raw_output": result_str}
+                step.status = "success"
 
             if on_step_complete:
                 on_step_complete(i, step)

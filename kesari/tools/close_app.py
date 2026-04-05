@@ -73,7 +73,7 @@ class CloseAppTool(BaseTool):
                 if pname and pname.lower() == process_name.lower():
                     proc.terminate()  # Graceful first
                     killed += 1
-            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            except psutil.Error as e:
                 errors.append(str(e))
 
         if killed > 0:
@@ -82,9 +82,10 @@ class CloseAppTool(BaseTool):
                 "message": f"Closed {killed} instance(s) of {app_name}",
             }
         elif errors:
+            err_msg = "; ".join(set(errors))
             return {
                 "status": "error",
-                "message": f"Could not close {app_name}: access denied. Try running as administrator.",
+                "message": f"Failed to close {app_name}: {err_msg}",
             }
         else:
             return {

@@ -10,7 +10,7 @@ class SessionMemory:
 
     def __init__(self, max_messages: int = 50):
         self._messages: list[dict] = []
-        self._max = max_messages
+        self._max = max(1, max_messages)
         self._session_start = datetime.now()
         self._metadata: dict = {}
 
@@ -32,6 +32,8 @@ class SessionMemory:
 
     def get_last_n(self, n: int) -> list[dict]:
         """Get the last N messages."""
+        if n <= 0:
+            return []
         return self._messages[-n:]
 
     def get_summary(self) -> str:

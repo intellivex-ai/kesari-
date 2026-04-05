@@ -20,6 +20,8 @@ class SarvamSTT:
 
     def _ensure_client(self):
         """Lazily create the Sarvam client."""
+        if self._client is not None:
+            return
         if not self._api_key:
             raise ValueError("Sarvam API key not set. Go to Settings → API Keys.")
         try:
@@ -53,9 +55,9 @@ class SarvamSTT:
             return str(response)
 
         # Run sync API call in thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         text = await loop.run_in_executor(None, _sync_transcribe)
-        logger.info(f"STT result: {text[:100]}...")
+        logger.info(f"STT result: {text[:20]}...")
         return text
 
     def set_language(self, language: str):

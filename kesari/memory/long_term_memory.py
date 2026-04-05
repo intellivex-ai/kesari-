@@ -4,6 +4,7 @@ SQLite-backed persistent memory for conversations and preferences.
 """
 import json
 import logging
+import asyncio
 import aiosqlite
 from datetime import datetime
 from pathlib import Path
@@ -50,16 +51,21 @@ class LongTermMemory:
     def __init__(self, db_path: Path | None = None):
         self._db_path = str(db_path or DB_FILE)
         self._initialized = False
+        self._init_lock = asyncio.Lock()
 
     async def initialize(self):
         """Create tables if they don't exist."""
         if self._initialized:
             return
-        async with aiosqlite.connect(self._db_path) as db:
-            await db.executescript(SCHEMA)
-            await db.commit()
-        self._initialized = True
-        logger.info(f"Long-term memory initialized at {self._db_path}")
+        async with self._init_lock:
+            if self._initialized:
+                return
+            async with aiosqlite.connect(self._db_path) as db:
+                await db.execute("PRAGMA foreign_keys = ON")
+                await db.executescript(SCHEMA)
+                await db.commit()
+            self._initialized = True
+            logger.info(f"Long-term memory initialized at {self._db_path}")
 
     # ── Conversations ────────────────────────────────────
 
@@ -90,14 +96,12 @@ class LongTermMemory:
         """Delete a conversation and its messages."""
         await self.initialize()
         async with aiosqlite.connect(self._db_path) as db:
-            await db.execute(
-                "DELETE FROM messages WHERE conversation_id = ?",
-                (conversation_id,),
-            )
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute(
                 "DELETE FROM conversations WHERE id = ?",
                 (conversation_id,),
             )
+            # Messages will be CASCADE deleted due to PRAGMA foreign_keys = ON
             await db.commit()
 
     # ── Messages ─────────────────────────────────────────
@@ -147,10 +151,11 @@ class LongTermMemory:
         """Log a tool execution for analytics."""
         await self.initialize()
         async with aiosqlite.connect(self._db_path) as db:
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.execute(
                 "INSERT INTO tool_usage_log (tool_name, arguments, result, success) "
                 "VALUES (?, ?, ?, ?)",
-                (tool_name, json.dumps(arguments), result[:2000], int(success)),
+                (tool_name, json.dumps(arguments), str(result)[:2000], int(success)),
             )
             await db.commit()
 

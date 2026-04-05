@@ -23,12 +23,14 @@ class ToolRouter:
 
     def register(self, tool):
         """Register a tool instance (must have .name, .definition, .execute())."""
+        if tool.name in self._tools:
+            self._definitions = [d for d in self._definitions if d.get("function", {}).get("name") != tool.name]
         self._tools[tool.name] = tool
         self._definitions.append({
             "type": "function",
             "function": tool.definition,
         })
-        logger.info(f"Registered tool: {tool.name}")
+        logger.debug(f"Registered tool: {tool.name}")
 
     def get_definitions(self) -> list[dict]:
         """Return all tool definitions in OpenAI function-calling format."""
@@ -47,14 +49,16 @@ class ToolRouter:
 
         try:
             args = json.loads(arguments_json) if arguments_json else {}
+            if not isinstance(args, dict):
+                args = {}
         except json.JSONDecodeError:
             return json.dumps({"error": f"Invalid JSON arguments: {arguments_json}"})
 
         try:
-            logger.info(f"Executing tool: {name} with args: {args}")
+            logger.debug(f"Executing tool: {name} with args: {args}")
             result = await tool.execute(**args)
-            if isinstance(result, dict):
-                return json.dumps(result, ensure_ascii=False)
+            if isinstance(result, (dict, list)):
+                return json.dumps(result, ensure_ascii=False, default=str)
             return str(result)
         except Exception as e:
             logger.error(f"Tool {name} failed: {e}", exc_info=True)

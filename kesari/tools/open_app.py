@@ -114,32 +114,42 @@ class OpenAppTool(BaseTool):
             except OSError as e:
                 return {"status": "error", "message": f"Failed to open {app_name}: {e}"}
 
+        DETACHED_PROCESS = 0x00000008
+
         # 2. Check if it's on PATH
         found = shutil.which(executable) or shutil.which(executable + ".exe")
         if found:
-            subprocess.Popen([found], shell=False)
-            return {"status": "success", "message": f"Opened {app_name}"}
+            try:
+                subprocess.Popen([found], shell=False, creationflags=DETACHED_PROCESS)
+                return {"status": "success", "message": f"Opened {app_name}"}
+            except Exception as e:
+                return {"status": "error", "message": f"Launch error: {e}"}
 
         # 3. Check known install paths
         for path in KNOWN_PATHS.get(executable, []):
             if os.path.exists(path):
-                if "Update.exe" in path:  # Discord uses --processStart
-                    subprocess.Popen([path, "--processStart", "Discord.exe"])
-                else:
-                    subprocess.Popen([path])
-                return {"status": "success", "message": f"Opened {app_name}"}
+                try:
+                    if "Update.exe" in path:  # Discord uses --processStart
+                        subprocess.Popen([path, "--processStart", "Discord.exe"], creationflags=DETACHED_PROCESS)
+                    else:
+                        subprocess.Popen([path], creationflags=DETACHED_PROCESS)
+                    return {"status": "success", "message": f"Opened {app_name}"}
+                except Exception as e:
+                    return {"status": "error", "message": f"Launch error: {e}"}
 
         # 4. Try PowerShell Start-Process (resolves Start Menu shortcuts)
-        try:
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-Command",
-                 f'Start-Process "{executable}"'],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0:
-                return {"status": "success", "message": f"Opened {app_name}"}
-        except Exception:
-            pass
+        import re
+        if re.match(r"^[\w \-\+]+$", executable):
+            try:
+                result = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command",
+                     f'Start-Process "{executable}"'],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0:
+                    return {"status": "success", "message": f"Opened {app_name}"}
+            except Exception:
+                pass
 
         # 5. Try os.startfile as last resort
         try:

@@ -41,11 +41,23 @@ class ScreenshotTool(BaseTool):
         if not filename:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"screenshot_{timestamp}.png"
+        else:
+            filename = Path(filename).name  # Prevent path traversal
+            if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                filename += ".png"
 
         filepath = desktop / filename
         try:
-            img = ImageGrab.grab()
-            img.save(str(filepath))
+            if platform.system() == "Linux":
+                try:
+                    img = ImageGrab.grab()
+                    img.save(str(filepath))
+                except Exception:
+                    # Fallback for Wayland or missing ImageGrab support
+                    subprocess.run(["scrot", str(filepath)], check=True)
+            else:
+                img = ImageGrab.grab()
+                img.save(str(filepath))
             return {
                 "status": "success",
                 "message": f"Screenshot saved to {filepath}",
@@ -141,21 +153,24 @@ class RunCommandTool(BaseTool):
         return True
 
     async def execute(self, command: str, shell: str = "powershell") -> dict:
-        # Block extremely dangerous commands
-        dangerous = ["format", "del /s", "rm -rf", "rd /s", ":(){", "fork"]
+        import re
         cmd_lower = command.lower()
-        for d in dangerous:
-            if d in cmd_lower:
+        dangerous_patterns = [
+            r"\bformat\b", r"\bdel\s+/s\b", r"\brm\s+-rf\b", r"\brd\s+/s\b", 
+            r":\(\)\{", r"\bfork\b"
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, cmd_lower):
                 return {
                     "status": "blocked",
-                    "message": f"Command blocked for safety: contains '{d}'",
+                    "message": f"Command blocked for safety: matches dangerous pattern '{pattern}'",
                 }
 
         try:
             if shell == "cmd":
                 result = subprocess.run(
-                    command,
-                    shell=True,
+                    ["cmd", "/c", command],
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -168,7 +183,16 @@ class RunCommandTool(BaseTool):
                     timeout=30,
                 )
 
-            output = result.stdout.strip() or result.stderr.strip()
+            out_str = result.stdout.strip()
+            err_str = result.stderr.strip()
+            combined = []
+            if out_str:
+                combined.append(out_str)
+            if err_str:
+                combined.append(f"STDERR:\n{err_str}")
+                
+            output = "\n".join(combined)
+
             return {
                 "status": "success" if result.returncode == 0 else "error",
                 "return_code": result.returncode,

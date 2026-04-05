@@ -66,6 +66,7 @@ class SearchFileTool(BaseTool):
             ]
 
         results = []
+        seen_paths = set()
         pattern = query if "*" in query or "?" in query else f"*{query}*"
 
         for search_dir in search_dirs:
@@ -75,6 +76,10 @@ class SearchFileTool(BaseTool):
                 for match in search_dir.rglob(pattern):
                     if len(results) >= max_results:
                         break
+                    match_path = str(match.resolve())
+                    if match_path in seen_paths:
+                        continue
+                    seen_paths.add(match_path)
                     try:
                         stat = match.stat()
                         results.append({

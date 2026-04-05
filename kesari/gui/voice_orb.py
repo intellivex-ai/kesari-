@@ -47,6 +47,8 @@ class VoiceOrb(QWidget):
 
     def set_state(self, state: str):
         """Set orb state: 'idle', 'listening', 'speaking', 'processing'."""
+        if state not in ("idle", "listening", "speaking", "processing"):
+            return
         self._state = state
         self.update()
 

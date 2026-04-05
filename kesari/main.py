@@ -53,6 +53,7 @@ class AsyncWorker(QObject):
         super().__init__(parent)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._loop_ready = threading.Event()
 
     def start(self):
         """Start the async event loop in a background daemon thread."""
@@ -62,12 +63,17 @@ class AsyncWorker(QObject):
     def _run_loop(self):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
+        self._loop_ready.set()
         self._loop.run_forever()
 
     def run(self, coro):
         """Schedule a coroutine on the background event loop."""
+        if not self._loop_ready.wait(timeout=5.0):
+            raise RuntimeError("Timed out waiting for asyncio loop to start.")
         if self._loop and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(coro, self._loop)
+        else:
+            raise RuntimeError("Asyncio loop is not running.")
 
     def stop(self):
         if self._loop:
@@ -200,8 +206,8 @@ class KesariApp(QObject):
                             json.loads(tool_args) if tool_args else {},
                             result,
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error(f"Failed to log tool usage: {e}")
 
                     # Send result back to LLM
                     self.ai_client.add_tool_result(
@@ -302,6 +308,9 @@ class KesariApp(QObject):
                 self.window.voice_orb.set_state("listening")
                 self.session_memory.set_metadata("voice_mode", True)
                 # Update audio level for orb
+                if hasattr(self, '_audio_level_timer'):
+                    self._audio_level_timer.stop()
+                    self._audio_level_timer.deleteLater()
                 self._audio_level_timer = QTimer(self)
                 self._audio_level_timer.timeout.connect(self._update_audio_level)
                 self._audio_level_timer.start(50)
@@ -311,6 +320,7 @@ class KesariApp(QObject):
             # Stop recording and transcribe
             if hasattr(self, '_audio_level_timer'):
                 self._audio_level_timer.stop()
+                self._audio_level_timer.deleteLater()
             if self.audio_recorder.is_recording:
                 wav_bytes = self.audio_recorder.stop()
                 if wav_bytes:
@@ -360,6 +370,8 @@ class KesariApp(QObject):
                 speaker=settings.get("tts_speaker", "meera"),
             )
             # Truncate for TTS (API limits)
+            if len(text) > 500:
+                logger.warning("TTS text truncated to 500 chars due to API limit")
             short_text = text[:500]
             audio_bytes = await tts.synthesize(short_text)
             if audio_bytes:
@@ -404,6 +416,8 @@ class KesariApp(QObject):
         """Reload config after settings change."""
         # Recreate AI client with new key/model
         self.ai_client = OpenRouterClient()
+        self.session_memory.clear()
+        self.window.chat_widget.clear_chat()
         logger.info("Settings saved and applied")
 
     def _prompt_api_key(self):

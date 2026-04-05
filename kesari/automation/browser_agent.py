@@ -99,7 +99,12 @@ class BrowserAgent:
 
     async def search_google(self, query: str) -> dict:
         """Search Google and return results."""
-        await self.navigate(f"https://www.google.com/search?q={query}")
+        import urllib.parse
+        encoded_query = urllib.parse.quote(query)
+        nav_result = await self.navigate(f"https://www.google.com/search?q={encoded_query}")
+        if nav_result.get("status") == "error":
+            return nav_result
+        
         await asyncio.sleep(1)
         try:
             title = await self._page.title()

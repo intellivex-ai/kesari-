@@ -76,10 +76,18 @@ def load_plugins(router: ToolRouter, plugins_dir: Path | None = None):
                 logger.warning(f"Plugin '{plugin_name}' has no main.py — skipped")
                 continue
 
+            if not plugin_path.name.replace("_", "").isalnum():
+                logger.warning(f"Plugin directory '{plugin_path.name}' has invalid characters — skipped")
+                continue
+
             # Load the plugin module
             spec = importlib.util.spec_from_file_location(
                 f"plugins.{plugin_path.name}", str(main_path)
             )
+            if spec is None or spec.loader is None:
+                logger.error(f"Failed to create module spec for plugin {plugin_name}")
+                continue
+                
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
