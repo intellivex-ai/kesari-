@@ -1,0 +1,37 @@
+{
+    "name": "example_plugin",
+    "version": "1.0.0",
+    "description": "Example plugin demonstrating the Kesari AI plugin system",
+    "author": "Kesari AI",
+    "tools": [
+        {
+            "name": "get_current_time",
+            "function": "get_current_time",
+            "description": "Get the current date and time",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone name (e.g. 'Asia/Kolkata'). Default: local time."
+                    }
+                }
+            }
+        },
+        {
+            "name": "calculate",
+            "function": "calculate",
+            "description": "Evaluate a mathematical expression",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {
+                        "type": "string",
+                        "description": "Math expression to evaluate (e.g. '2 + 2', 'sqrt(16)')"
+                    }
+                },
+                "required": ["expression"]
+            }
+        }
+    ]
+}
