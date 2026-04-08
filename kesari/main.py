@@ -228,9 +228,52 @@ class KesariApp(QObject):
             QTimer.singleShot(500, self._prompt_api_key)
 
         # Start companion API if enabled
-        if settings.get("enable_companion_api", False):
+        if settings.get("enable_companion_api", True):
             api_port = settings.get("companion_api_port", 8765)
-            QTimer.singleShot(1000, lambda: self.start_api_server(port=api_port))
+            QTimer.singleShot(1500, lambda: self.start_api_server(port=api_port))
+
+    def start_api_server(self, port: int = 8765):
+        """Start the FastAPI companion server in a daemon background thread."""
+        if self._api_server_thread and self._api_server_thread.is_alive():
+            logger.info("Companion API server already running.")
+            return
+
+        try:
+            import uvicorn
+            from kesari.api.server import app as api_app, configure as api_configure
+
+            # Inject live service references
+            api_configure(
+                orchestrator=self.orchestrator,
+                ai_client=self.ai_client,
+                user_profile=self.user_profile,
+                system_monitor=self.system_monitor,
+                long_term_memory=self.long_term_memory,
+            )
+
+            config = uvicorn.Config(
+                api_app,
+                host="0.0.0.0",
+                port=port,
+                log_level="warning",
+                loop="asyncio",
+            )
+            server = uvicorn.Server(config)
+
+            def _run():
+                import asyncio as _asyncio
+                loop = _asyncio.new_event_loop()
+                _asyncio.set_event_loop(loop)
+                loop.run_until_complete(server.serve())
+
+            self._api_server_thread = threading.Thread(
+                target=_run, daemon=True, name="kesari-api"
+            )
+            self._api_server_thread.start()
+            logger.info(f"Companion API started on http://0.0.0.0:{port}")
+
+        except Exception as e:
+            logger.error(f"Failed to start companion API: {e}", exc_info=True)
 
     # ── Message Handling ─────────────────────────────────
 

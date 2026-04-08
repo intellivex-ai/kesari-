@@ -65,6 +65,13 @@ class Settings:
         "floating_hotkey": "ctrl+space",
         "wake_word_enabled": False,
         "wake_word_model": "hey_jarvis",
+        "enable_proactive_monitoring": True,
+        "monitoring_interval": 60,
+        "cpu_threshold": 85,
+        "ram_threshold": 90,
+        "disk_threshold": 95,
+        "enable_companion_api": True,       # Start web companion API on boot
+        "companion_api_port": 8765,
     }
 
     def __init__(self):

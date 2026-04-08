@@ -40,11 +40,16 @@ class VectorMemory:
         """Add a memory fragment to the vector database."""
         if not self.collection:
             return
-            
+
         try:
+            # ChromaDB requires at least one metadata field
+            safe_meta = {"source": "kesari"}
+            if metadata:
+                safe_meta.update(metadata)
+
             self.collection.add(
                 documents=[text],
-                metadatas=[metadata or {}],
+                metadatas=[safe_meta],
                 ids=[memory_id]
             )
             logger.info(f"Added memory to vector db: {memory_id}")
