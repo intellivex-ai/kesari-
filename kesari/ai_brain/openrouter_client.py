@@ -63,12 +63,27 @@ class OpenRouterClient:
         self._trim_history()
 
     def add_tool_result(self, tool_call_id: str, name: str, content: str):
-        """Add a tool result back into the conversation."""
+        """Add a tool result back into the conversation, handling multimodal payloads."""
+        payload = content
+        try:
+            import json
+            data = json.loads(content)
+            if isinstance(data, dict) and "image_base64" in data:
+                payload = [
+                    {"type": "text", "text": data.get("description", "Attached screen capture")},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{data.get('media_type', 'image/jpeg')};base64,{data['image_base64']}"}
+                    }
+                ]
+        except Exception:
+            pass
+
         self._conversation.append({
             "role": "tool",
             "tool_call_id": tool_call_id,
             "name": name,
-            "content": content,
+            "content": payload,
         })
         self._trim_history()
 
@@ -80,15 +95,16 @@ class OpenRouterClient:
             while self._conversation and self._conversation[0].get("role") == "tool":
                 self._conversation.pop(0)
 
-    def _build_messages(self) -> list[dict]:
+    def _build_messages(self, extra_context: str = "") -> list[dict]:
         """Build the full message list: system + conversation."""
-        return build_system_messages() + list(self._conversation)
+        return build_system_messages(extra_context) + list(self._conversation)
 
     # ── Streaming Chat ────────────────────────────────────
 
     async def stream_chat(
         self,
         tools: list[dict] | None = None,
+        extra_context: str = "",
     ) -> AsyncIterator[dict]:
         """
         Stream a chat completion. Yields dicts:
@@ -98,7 +114,7 @@ class OpenRouterClient:
           {"type": "error", "content": "error message"}
         """
         self._ensure_client()
-        messages = self._build_messages()
+        messages = self._build_messages(extra_context)
 
         kwargs = {
             "model": self.model,

@@ -25,6 +25,9 @@ def create_application(argv: list[str] | None = None) -> QApplication:
     app.setOrganizationName("KesariAI")
     app.setApplicationVersion("1.0.0")
 
+    # Keep app running in background when window is closed
+    app.setQuitOnLastWindowClosed(False)
+
     # ── Font ──────────────────────────────────────────────
     # Try to load Inter; fall back to Segoe UI (Windows) or system default
     font_id = QFontDatabase.addApplicationFont(":/fonts/Inter-Variable.ttf")

@@ -12,11 +12,13 @@ from kesari.tools.system_commands import (
     ScreenshotTool, SystemInfoTool, RunCommandTool,
 )
 from kesari.tools.clipboard_tool import ClipboardReadTool, ClipboardWriteTool
+from kesari.tools.task_manager import AddReminderTool, ListTasksTool
+from kesari.tools.screen_context import CaptureScreenTool
 
 logger = logging.getLogger(__name__)
 
 
-def register_all_tools(router: ToolRouter):
+def register_all_tools(router: ToolRouter, app=None):
     """Register all built-in tools with the router."""
     tools = [
         OpenAppTool(),
@@ -28,6 +30,9 @@ def register_all_tools(router: ToolRouter):
         RunCommandTool(),
         ClipboardReadTool(),
         ClipboardWriteTool(),
+        AddReminderTool(app_context=app),
+        ListTasksTool(app_context=app),
+        CaptureScreenTool()
     ]
     for tool in tools:
         router.register(tool)

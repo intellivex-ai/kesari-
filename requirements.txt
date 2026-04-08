@@ -1,28 +1,50 @@
-# Kesari AI — Dependencies
-# Core GUI
+# ─────────────────────────────────────────────────────────
+# Kesari AI — Dependency Manifest  (Python 3.11+)
+# ─────────────────────────────────────────────────────────
+
+# ── Core GUI ─────────────────────────────────────────────
 PySide6>=6.6.0
 qasync>=0.27.1
 
-# AI / LLM
-openai>=1.12.0
+# ── AI / LLM ─────────────────────────────────────────────
+openai>=1.12.0          # OpenRouter uses the OpenAI SDK
+ollama>=0.1.6           # Local models via Ollama
 
-# Voice Engine
-sarvamai>=0.1.0
+# ── Voice Engine ─────────────────────────────────────────
+sarvamai>=0.1.0         # Sarvam AI STT + TTS
 sounddevice>=0.4.6
 numpy>=1.24.0
 
-# System Tools
-psutil>=5.9.0
-pyperclip>=1.8.2
-Pillow>=10.0.0
-pyautogui>=0.9.54
+# ── System Tools ─────────────────────────────────────────
+psutil>=5.9.0           # CPU / RAM / Disk monitoring
+pyperclip>=1.8.2        # Clipboard read/write
+Pillow>=10.0.0          # Screenshots + image handling
+mss>=10.0.0             # Fast multi-monitor capture
+pyautogui>=0.9.54       # Mouse + keyboard automation
+pynput>=1.7.6           # Global hotkey listener
 
-# Browser Automation
+# ── Browser Automation ───────────────────────────────────
 playwright>=1.40.0
 
-# Utilities
+# ── Web / API Server ─────────────────────────────────────
+fastapi>=0.109.0        # REST + WebSocket companion API
+uvicorn>=0.27.0         # ASGI server
+websockets>=12.0
+aiohttp>=3.9.0
+
+# ── Memory & Storage ─────────────────────────────────────
+aiosqlite>=0.19.0       # Async SQLite (long-term memory)
+chromadb>=0.4.22        # Vector DB (RAG / semantic search)
+
+# ── Security ─────────────────────────────────────────────
+keyring>=24.3.0         # Secure credential storage
+
+# ── Wake Word Detection ───────────────────────────────────
+openwakeword>=0.6.0
+
+# ── Utilities ────────────────────────────────────────────
 python-dotenv>=1.0.0
 markdown>=3.5.0
-aiosqlite>=0.19.0
-aiohttp>=3.9.0
-pynput>=1.7.6
+watchdog>=3.0.0         # Plugin hot-reload
+schedule>=1.2.1
+pydantic>=2.0.0         # FastAPI request/response models

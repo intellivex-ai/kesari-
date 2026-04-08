@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Kesari AI — Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:         #0d0d1a;
+      --bg-card:    #141425;
+      --bg-input:   #1a1a2e;
+      --accent:     #E85D04;
+      --accent-dim: #E85D0422;
+      --text:       #f0f0f8;
+      --muted:      #888899;
+      --border:     #2a2a3d;
+      --user-bubble:#E85D04;
+      --ai-bubble:  #1e1e35;
+      --radius:     16px;
+      --safe-b:     env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo { font-size: 22px; }
+    .brand { font-weight: 800; font-size: 18px; }
+    .brand span { color: var(--accent); }
+    #agent-badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid var(--accent)44;
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 0.4px;
+      transition: opacity 0.3s;
+    }
+    #status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    #status-dot.connected { background: #22c55e; }
+
+    /* ── Chat area ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      max-width: 82%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14.5px;
+      line-height: 1.55;
+      animation: pop 0.18s ease;
+    }
+    @keyframes pop {
+      from { transform: scale(0.94); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--user-bubble);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.ai {
+      align-self: flex-start;
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      white-space: pre-wrap;
+    }
+    .msg.system-msg {
+      align-self: center;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      border: 0;
+      padding: 4px 0;
+    }
+
+    /* typing indicator */
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .typing-dots span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: blink 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
+      40%           { opacity: 1;   transform: scale(1.1); }
+    }
+
+    /* ── Agent selector ── */
+    #agent-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    #agent-bar::-webkit-scrollbar { display: none; }
+
+    .agent-chip {
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .agent-chip:hover   { border-color: var(--accent44); color: var(--text); }
+    .agent-chip.active  {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Input bar ── */
+    #input-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding: 12px 16px calc(12px + var(--safe-b));
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #msg-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      padding: 12px 16px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      min-height: 48px;
+      line-height: 1.4;
+      transition: border-color 0.2s;
+    }
+    #msg-input:focus { border-color: var(--accent); }
+    #msg-input::placeholder { color: var(--muted); }
+
+    #send-btn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    #send-btn:active  { transform: scale(0.91); }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Scrollbar ── */
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">🦁</div>
+    <div class="brand">Kesari <span>AI</span></div>
+    <div id="agent-badge">GeneralAgent</div>
+    <div id="status-dot" title="Connecting…"></div>
+  </header>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="msg system-msg">Connecting to Kesari AI…</div>
+  </div>
+
+  <!-- Agent chips -->
+  <div id="agent-bar">
+    <button class="agent-chip active" data-agent="">🤖 Auto</button>
+    <button class="agent-chip" data-agent="research">🔍 Research</button>
+    <button class="agent-chip" data-agent="coding">💻 Coding</button>
+    <button class="agent-chip" data-agent="system">⚙️ System</button>
+    <button class="agent-chip" data-agent="general">💬 General</button>
+  </div>
+
+  <!-- Input -->
+  <div id="input-bar">
+    <textarea id="msg-input" placeholder="Message Kesari AI…" rows="1"></textarea>
+    <button id="send-btn" disabled title="Send">➤</button>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────
+  let ws = null;
+  let currentAgent = "";       // "" = auto
+  let aiMsgEl = null;          // current streaming AI bubble
+  let isStreaming = false;
+
+  const messagesEl = document.getElementById("messages");
+  const inputEl    = document.getElementById("msg-input");
+  const sendBtn    = document.getElementById("send-btn");
+  const statusDot  = document.getElementById("status-dot");
+  const agentBadge = document.getElementById("agent-badge");
+
+  // ── Auto-resize textarea ─────────────────────────────────
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+  });
+
+  // ── Agent chip selection ─────────────────────────────────
+  document.querySelectorAll(".agent-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".agent-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      currentAgent = chip.dataset.agent;
+    });
+  });
+
+  // ── Connect WebSocket ─────────────────────────────────────
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws/chat`);
+
+    ws.onopen = () => {
+      statusDot.classList.add("connected");
+      statusDot.title = "Connected";
+      sendBtn.disabled = false;
+      appendSystemMsg("✅ Connected to Kesari AI");
+    };
+
+    ws.onclose = () => {
+      statusDot.classList.remove("connected");
+      statusDot.title = "Disconnected";
+      sendBtn.disabled = true;
+      appendSystemMsg("⚡ Reconnecting…");
+      setTimeout(connect, 2500);
+    };
+
+    ws.onerror = () => {
+      appendSystemMsg("❌ Connection error. Retrying…");
+    };
+
+    ws.onmessage = (e) => {
+      const event = JSON.parse(e.data);
+      handleEvent(event);
+    };
+  }
+
+  // ── Handle server events ─────────────────────────────────
+  function handleEvent(event) {
+    switch (event.type) {
+
+      case "agent_selected":
+        agentBadge.textContent = event.agent;
+        break;
+
+      case "token":
+        if (!aiMsgEl) {
+          aiMsgEl = appendMsg("", "ai");
+        }
+        // Remove typing indicator if present
+        const dots = aiMsgEl.querySelector(".typing-dots");
+        if (dots) dots.remove();
+        aiMsgEl.textContent += event.content;
+        scrollToBottom();
+        break;
+
+      case "tool_call":
+        appendSystemMsg(`🔧 Running: ${event.name}…`);
+        break;
+
+      case "done":
+        isStreaming = false;
+        aiMsgEl = null;
+        sendBtn.disabled = false;
+        inputEl.disabled = false;
+        inputEl.focus();
+        break;
+
+      case "error":
+        isStreaming = false;
+        aiMsgEl = null;
+        sendBtn.disabled = false;
+        inputEl.disabled = false;
+        appendSystemMsg(`❌ ${event.content}`);
+        break;
+    }
+  }
+
+  // ── Send message ─────────────────────────────────────────
+  function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+    appendMsg(text, "user");
+    inputEl.value = "";
+    inputEl.style.height = "auto";
+
+    isStreaming = true;
+    sendBtn.disabled = true;
+    inputEl.disabled = true;
+
+    // Show typing indicator
+    aiMsgEl = appendMsg("", "ai");
+    aiMsgEl.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+    scrollToBottom();
+
+    ws.send(JSON.stringify({ message: text, agent: currentAgent || null }));
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── DOM helpers ──────────────────────────────────────────
+  function appendMsg(text, cls) {
+    const el = document.createElement("div");
+    el.className = `msg ${cls}`;
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    scrollToBottom();
+    return el;
+  }
+
+  function appendSystemMsg(text) {
+    const el = document.createElement("div");
+    el.className = "msg system-msg";
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    scrollToBottom();
+    return el;
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // ── Boot ─────────────────────────────────────────────────
+  connect();
+</script>
+</body>
+</html>

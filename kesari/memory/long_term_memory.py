@@ -40,8 +40,17 @@ CREATE TABLE IF NOT EXISTS tool_usage_log (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_name TEXT NOT NULL,
+    trigger_time TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_tool_usage_time ON tool_usage_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 """
 
 
@@ -172,3 +181,37 @@ class LongTermMemory:
             )
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+    # ── Tasks & Scheduling ──────────────────────────────────────
+
+    async def add_task(self, task_name: str, trigger_time: str) -> int:
+        """Add a scheduled task and return its ID."""
+        await self.initialize()
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                "INSERT INTO tasks (task_name, trigger_time, status) VALUES (?, ?, 'pending')",
+                (task_name, trigger_time),
+            )
+            await db.commit()
+            return cursor.lastrowid
+
+    async def list_pending_tasks(self) -> list[dict]:
+        """List all tasks that are still pending."""
+        await self.initialize()
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM tasks WHERE status = 'pending' ORDER BY trigger_time ASC"
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def mark_task_completed(self, task_id: int):
+        """Mark a task as completed."""
+        await self.initialize()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE tasks SET status = 'completed' WHERE id = ?",
+                (task_id,),
+            )
+            await db.commit()

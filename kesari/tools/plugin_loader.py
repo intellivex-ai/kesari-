@@ -8,12 +8,23 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from typing import Any
+import sys
+import os
+import threading
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
 from kesari.tools.base_tool import BaseTool
 from kesari.ai_brain.tool_router import ToolRouter
 
 logger = logging.getLogger(__name__)
 
 PLUGINS_DIR = Path(__file__).resolve().parent.parent.parent / "plugins"
+
+# Track which tools belong to which plugin so we can hot-reload purely
+_plugin_tools_map: dict[str, list[str]] = {}
+_watcher_observer: Observer | None = None
 
 
 class PluginTool(BaseTool):
@@ -81,15 +92,28 @@ def load_plugins(router: ToolRouter, plugins_dir: Path | None = None):
                 continue
 
             # Load the plugin module
+            # If already loaded, we must clear it from sys.modules to force reload
+            mod_name = f"plugins.{plugin_path.name}"
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
+                
             spec = importlib.util.spec_from_file_location(
-                f"plugins.{plugin_path.name}", str(main_path)
+                mod_name, str(main_path)
             )
             if spec is None or spec.loader is None:
                 logger.error(f"Failed to create module spec for plugin {plugin_name}")
                 continue
                 
             module = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = module
             spec.loader.exec_module(module)
+
+            # Unregister any existing tools for this plugin (if reloading)
+            if plugin_name in _plugin_tools_map:
+                for tname in _plugin_tools_map[plugin_name]:
+                    router.unregister(tname)
+                    
+            _plugin_tools_map[plugin_name] = []
 
             # Register each tool defined in the manifest
             for tool_def in manifest.get("tools", []):
@@ -108,8 +132,58 @@ def load_plugins(router: ToolRouter, plugins_dir: Path | None = None):
                     func=func,
                 )
                 router.register(tool)
+                _plugin_tools_map[plugin_name].append(tool.name)
 
-            logger.info(f"Loaded plugin: {plugin_name} ({len(manifest.get('tools', []))} tools)")
+            logger.info(f"Loaded plugin: {plugin_name} ({len(_plugin_tools_map[plugin_name])} tools)")
 
         except Exception as e:
             logger.error(f"Failed to load plugin from {plugin_path}: {e}", exc_info=True)
+
+
+class PluginChangeHandler(FileSystemEventHandler):
+    """Watches the plugins folder and triggers reloads for modified plugin directories."""
+
+    def __init__(self, router: ToolRouter, plugins_dir: Path):
+        self.router = router
+        self.plugins_dir = plugins_dir
+        self._lock = threading.Lock()
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        
+        path = Path(event.src_path)
+        if path.suffix not in ['.py', '.json']:
+            return
+
+        # Figure out which plugin folder this belongs to
+        try:
+            rel = path.relative_to(self.plugins_dir)
+            plugin_dir_name = rel.parts[0]
+            
+            with self._lock:
+                # Reload ALL plugins (simpler) or just the specific one. 
+                # Re-running load_plugins is safe since we now clear old instances!
+                logger.debug(f"Plugin change detected in {plugin_dir_name}, scheduling reload...")
+                import asyncio
+                # Load plugins is synchronous, we can just call it
+                # We specifically load the entire directory here to be safe, 
+                # but could optimize to load_plugin(plugin_dir_name)
+                load_plugins(self.router, self.plugins_dir)
+                
+        except ValueError:
+            pass
+
+def start_plugin_watcher(router: ToolRouter, plugins_dir: Path | None = None):
+    """Starts the background watchdog to hot-reload plugins."""
+    global _watcher_observer
+    search_dir = plugins_dir or PLUGINS_DIR
+    
+    if _watcher_observer is not None:
+        return
+        
+    event_handler = PluginChangeHandler(router, search_dir)
+    _watcher_observer = Observer()
+    _watcher_observer.schedule(event_handler, str(search_dir), recursive=True)
+    _watcher_observer.start()
+    logger.info("Hot-reload watchdog started for plugins.")

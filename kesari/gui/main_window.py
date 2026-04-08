@@ -163,6 +163,7 @@ class _Sidebar(QWidget):
 
     new_chat_clicked = Signal()
     settings_clicked = Signal()
+    analytics_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -225,6 +226,13 @@ class _Sidebar(QWidget):
         settings_btn.clicked.connect(self.settings_clicked)
         layout.addWidget(settings_btn)
 
+        # ── Analytics Button ────────────────────────────
+        analytics_btn = QPushButton("📊  Analytics")
+        analytics_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        analytics_btn.setStyleSheet(SIDEBAR_BUTTON_STYLE)
+        analytics_btn.clicked.connect(self.analytics_clicked)
+        layout.addWidget(analytics_btn)
+
     def add_history_item(self, title: str, on_click=None):
         """Add a conversation history item."""
         btn = QPushButton(f"  💬  {title}")
@@ -252,6 +260,8 @@ class MainWindow(QMainWindow):
     voice_toggle = Signal(bool)         # Voice button pressed/released
     new_chat_requested = Signal()       # New chat clicked
     settings_requested = Signal()       # Settings clicked
+    analytics_requested = Signal()      # Analytics clicked
+    hidden_to_tray = Signal()           # Window closed to tray
 
     def __init__(self):
         super().__init__()
@@ -288,6 +298,7 @@ class MainWindow(QMainWindow):
         self._sidebar = _Sidebar()
         self._sidebar.new_chat_clicked.connect(self.new_chat_requested)
         self._sidebar.settings_clicked.connect(self.settings_requested)
+        self._sidebar.analytics_clicked.connect(self.analytics_requested)
         body_layout.addWidget(self._sidebar)
 
         # Chat area + input
@@ -394,3 +405,8 @@ class MainWindow(QMainWindow):
         self._resize_dragging = False
         self._resize_edge = None
         super().mouseReleaseEvent(event)
+
+    def closeEvent(self, event: QEvent):
+        """Hide window to tray instead of quitting."""
+        self.hidden_to_tray.emit()
+        event.accept()

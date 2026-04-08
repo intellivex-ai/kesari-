@@ -13,6 +13,10 @@ from PySide6.QtGui import QCursor
 from kesari.config import settings
 from kesari.gui.styles import COLORS, SEND_BUTTON_STYLE
 
+# If using dynamic themes later, we'll need a way to refresh
+# For now, we just edit settings.
+
+
 
 class SettingsDialog(QDialog):
     """Settings dialog for Kesari AI."""
@@ -70,6 +74,22 @@ class SettingsDialog(QDialog):
             }}
         """)
 
+        # ── General / Appearance Tab ─────────────────────
+        gen_tab = QWidget()
+        gen_layout = QFormLayout(gen_tab)
+        gen_layout.setSpacing(12)
+        gen_layout.setContentsMargins(16, 16, 16, 16)
+        
+        self._theme_combo = QComboBox()
+        self._theme_combo.addItems(["dark", "light", "saffron"])
+        current_theme = settings.get("theme", "dark")
+        idx = self._theme_combo.findText(current_theme)
+        if idx >= 0:
+            self._theme_combo.setCurrentIndex(idx)
+        gen_layout.addRow("App Theme:", self._theme_combo)
+        
+        tabs.addTab(gen_tab, "👁 Appearance")
+
         # ── API Keys Tab ─────────────────────────────────
         api_tab = QWidget()
         api_layout = QFormLayout(api_tab)
@@ -94,6 +114,14 @@ class SettingsDialog(QDialog):
         model_layout.setSpacing(12)
         model_layout.setContentsMargins(16, 16, 16, 16)
 
+        self._provider_combo = QComboBox()
+        self._provider_combo.addItems(["auto", "openrouter", "ollama"])
+        current_provider = settings.get("llm_provider", "auto")
+        idx = self._provider_combo.findText(current_provider)
+        if idx >= 0:
+            self._provider_combo.setCurrentIndex(idx)
+        model_layout.addRow("LLM Provider:", self._provider_combo)
+
         self._model_combo = QComboBox()
         self._model_combo.addItems([
             "openai/gpt-4o",
@@ -114,6 +142,14 @@ class SettingsDialog(QDialog):
         else:
             self._model_combo.setEditText(current_model)
         model_layout.addRow("Default Model:", self._model_combo)
+
+        self._ollama_url = QLineEdit(settings.get("ollama_endpoint", "http://localhost:11434"))
+        self._ollama_url.setPlaceholderText("http://localhost:11434")
+        model_layout.addRow("Ollama Fallback URL:", self._ollama_url)
+
+        self._ollama_model = QLineEdit(settings.get("ollama_model", "llama3:8b"))
+        self._ollama_model.setPlaceholderText("llama3:8b")
+        model_layout.addRow("Ollama Model:", self._ollama_model)
 
         tabs.addTab(model_tab, "🤖 Model")
 
@@ -146,6 +182,11 @@ class SettingsDialog(QDialog):
         if stt_idx >= 0:
             self._stt_lang.setCurrentIndex(stt_idx)
         voice_layout.addRow("STT Language:", self._stt_lang)
+
+        self._wake_word = QCheckBox("Enable Always-on Wake Word ('Hey Kesari')")
+        self._wake_word.setChecked(settings.get("wake_word_enabled", False))
+        self._wake_word.setStyleSheet(f"color: {COLORS['text_primary']}; font-size: 13px;")
+        voice_layout.addRow(self._wake_word)
 
         tabs.addTab(voice_tab, "🎤 Voice")
 
@@ -183,13 +224,30 @@ class SettingsDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _save(self):
+        old_theme = settings.get("theme", "dark")
+        new_theme = self._theme_combo.currentText()
+
         settings["openrouter_api_key"] = self._openrouter_key.text().strip()
         settings["sarvam_api_key"] = self._sarvam_key.text().strip()
+        settings["llm_provider"] = self._provider_combo.currentText()
         settings["default_model"] = self._model_combo.currentText().strip()
+        settings["ollama_endpoint"] = self._ollama_url.text().strip()
+        settings["ollama_model"] = self._ollama_model.text().strip()
         settings["tts_language"] = self._tts_lang.currentText()
         settings["tts_speaker"] = self._tts_speaker.currentText()
         settings["stt_language"] = self._stt_lang.currentText()
         settings["confirm_dangerous_actions"] = self._confirm_check.isChecked()
+        settings["theme"] = new_theme
+        settings["wake_word_enabled"] = self._wake_word.isChecked()
+        
         settings.save()
         self.settings_saved.emit()
         self.accept()
+
+        if old_theme != new_theme:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self.parent(),
+                "Restart Required",
+                "Please restart Kesari AI for the new theme to take effect."
+            )

@@ -16,6 +16,7 @@ You can control the user's PC and automate tasks using your tools:
 - **Open Websites** — Navigate to any URL in the browser
 - **System Commands** — Take screenshots, get system info, manage clipboard
 - **Browser Automation** — Fill forms, click buttons, navigate web pages
+- **Task Planner** — Schedule reminders (`add_reminder`) and see pending tasks (`list_tasks`)
 
 ## Guidelines
 1. **Be concise** — Keep responses short unless the user asks for detail

@@ -35,6 +35,13 @@ class ToolRouter:
     def get_definitions(self) -> list[dict]:
         """Return all tool definitions in OpenAI function-calling format."""
         return self._definitions
+        
+    def unregister(self, name: str):
+        """Remove a tool by name."""
+        if name in self._tools:
+            del self._tools[name]
+            self._definitions = [d for d in self._definitions if d.get("function", {}).get("name") != name]
+            logger.debug(f"Unregistered tool: {name}")
 
     # ── Execution ─────────────────────────────────────────
 
