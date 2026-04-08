@@ -17,12 +17,19 @@ from typing import AsyncGenerator, Any
 logger = logging.getLogger(__name__)
 
 
-# Per-agent model overrides — change these to swap models for each specialist
+# ── Per-agent NVIDIA NIM model overrides ─────────────────────────────────────
+# NVIDIA NIM:  https://build.nvidia.com/explore/discover
+# All models are available on the NVIDIA API at https://integrate.api.nvidia.com/v1
+#
+#  general   → meta/llama-3.3-70b-instruct        (best quality, broad knowledge)
+#  coding    → qwen/qwen2.5-coder-32b-instruct     (purpose-built coder, 32B)
+#  research  → mistralai/mistral-small-24b-instruct-2501  (fast + smart researcher)
+#  system    → meta/llama-3.1-8b-instruct          (lightning-fast for OS tasks)
 AGENT_MODELS: dict[str, str] = {
-    "general":  "meta-llama/llama-3.3-70b-instruct:free",
-    "coding":   "qwen/qwen3-coder:free",
-    "research": "stepfun/step-3.5-flash:free",   # quick answer for research
-    "system":   "stepfun/step-3.5-flash:free",   # quick answer for system ops
+    "general":  "meta/llama-3.3-70b-instruct",
+    "coding":   "qwen/qwen2.5-coder-32b-instruct",
+    "research": "mistralai/mistral-small-24b-instruct-2501",
+    "system":   "meta/llama-3.1-8b-instruct",
 }
 
 AGENT_REGISTRY: dict[str, dict] = {

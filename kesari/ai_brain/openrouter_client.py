@@ -9,7 +9,7 @@ from typing import AsyncIterator
 
 from openai import AsyncOpenAI
 
-from kesari.config import settings, OPENROUTER_BASE_URL, MAX_CONTEXT_MESSAGES
+from kesari.config import settings, OPENROUTER_BASE_URL, NVIDIA_BASE_URL, MAX_CONTEXT_MESSAGES
 from kesari.ai_brain.prompts import build_system_messages
 
 logger = logging.getLogger(__name__)
@@ -25,22 +25,47 @@ class OpenRouterClient:
     # ── Setup ─────────────────────────────────────────────
 
     def _ensure_client(self):
-        """Lazily create the OpenAI client pointed at OpenRouter."""
+        """Lazily create the OpenAI client pointed at the configured provider."""
         if self._client is not None:
             return
-        api_key = settings.get("openrouter_api_key", "")
-        if not api_key:
-            raise ValueError(
-                "OpenRouter API key not set. Go to Settings → API Keys."
+
+        provider = settings.get("llm_provider", "nvidia")
+
+        if provider == "nvidia":
+            api_key = settings.get("nvidia_api_key", "")
+            if not api_key:
+                raise ValueError(
+                    "NVIDIA API key not set. Add NVIDIA_API_KEY to your .env file."
+                )
+            self._client = AsyncOpenAI(
+                base_url=NVIDIA_BASE_URL,
+                api_key=api_key,
+                default_headers={
+                    "HTTP-Referer": "https://kesari-ai.local",
+                    "X-Title": "Kesari AI Desktop Assistant",
+                },
             )
-        self._client = AsyncOpenAI(
-            base_url=OPENROUTER_BASE_URL,
-            api_key=api_key,
-            default_headers={
-                "HTTP-Referer": "https://kesari-ai.local",
-                "X-Title": "Kesari AI Desktop Assistant",
-            },
-        )
+            self._provider = "nvidia"
+        else:
+            # openrouter / auto fallback
+            api_key = settings.get("openrouter_api_key", "")
+            if not api_key:
+                raise ValueError(
+                    "OpenRouter API key not set. Go to Settings → API Keys."
+                )
+            self._client = AsyncOpenAI(
+                base_url=OPENROUTER_BASE_URL,
+                api_key=api_key,
+                default_headers={
+                    "HTTP-Referer": "https://kesari-ai.local",
+                    "X-Title": "Kesari AI Desktop Assistant",
+                },
+            )
+            self._provider = "openrouter"
+
+    @property
+    def provider(self) -> str:
+        return getattr(self, "_provider", settings.get("llm_provider", "nvidia"))
 
     @property
     def model(self) -> str:
