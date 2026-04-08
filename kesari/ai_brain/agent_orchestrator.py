@@ -18,18 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 # ── Per-agent NVIDIA NIM model overrides ─────────────────────────────────────
-# NVIDIA NIM:  https://build.nvidia.com/explore/discover
-# All models are available on the NVIDIA API at https://integrate.api.nvidia.com/v1
-#
-#  general   → meta/llama-3.3-70b-instruct        (best quality, broad knowledge)
-#  coding    → qwen/qwen2.5-coder-32b-instruct     (purpose-built coder, 32B)
-#  research  → mistralai/mistral-small-24b-instruct-2501  (fast + smart researcher)
-#  system    → meta/llama-3.1-8b-instruct          (lightning-fast for OS tasks)
+# We use different NVIDIA NIM models depending on the agent's specialization.
 AGENT_MODELS: dict[str, str] = {
-    "general":  "meta/llama-3.3-70b-instruct",
-    "coding":   "qwen/qwen2.5-coder-32b-instruct",
-    "research": "mistralai/mistral-small-24b-instruct-2501",
-    "system":   "meta/llama-3.1-8b-instruct",
+    "general":  "meta/llama-3.3-70b-instruct",         # Broad knowledge
+    "coding":   "qwen/qwen2.5-coder-32b-instruct",     # Specialized in code
+    "research": "nvidia/nemotron-4-340b-instruct",     # Heavy reasoning + knowledge
+    "system":   "nvidia/llama-3.1-nemotron-nano-8b-v1",# Extremely fast, low latency
 }
 
 AGENT_REGISTRY: dict[str, dict] = {
