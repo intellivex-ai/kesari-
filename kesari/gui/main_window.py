@@ -342,6 +342,9 @@ class MainWindow(QMainWindow):
     def add_history_item(self, title: str, on_click=None):
         self._sidebar.add_history_item(title, on_click)
 
+    def clear_history(self):
+        self._sidebar.clear_history()
+
     # ── Window resize from edges ──────────────────────────
 
     def _edge_at(self, pos: QPoint):
