@@ -20,15 +20,16 @@ class WorkflowEngine:
         self.tool_router = tool_router
         self.audit_logger = audit_logger
 
-    async def run_workflow(self, extra_context: str, max_steps: int = 5) -> AsyncGenerator[dict[str, Any], None]:
+    async def run_workflow(self, extra_context: str, max_steps: int = 5, model_override: str | None = None) -> AsyncGenerator[dict[str, Any], None]:
         """
         Executes a streaming ai request, resolving subsequent tool calls automatically up to max_steps.
         Yields all tokens and events back to the UI.
+        If model_override is set, uses that model instead of the default.
         """
         tools = self.tool_router.get_definitions()
         
         # Step 0: The initial stream
-        stream = self.ai_client.stream_chat(extra_context=extra_context, tools=tools)
+        stream = self.ai_client.stream_chat(extra_context=extra_context, tools=tools, model_override=model_override)
         
         steps_taken = 0
         while steps_taken < max_steps:
@@ -79,7 +80,7 @@ class WorkflowEngine:
                 self.ai_client.add_tool_result(t_id, tool_name, str(result))
                 
             # Prepare streaming the result follow-up
-            stream = self.ai_client.complete_after_tools(tools=tools)
+            stream = self.ai_client.complete_after_tools(tools=tools, model_override=model_override)
 
         # Fallback if max steps exceeded
         if steps_taken >= max_steps:

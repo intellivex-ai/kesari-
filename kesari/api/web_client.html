@@ -2,99 +2,167 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0d0d1a" />
+  <!--
+    viewport-fit=cover + initial-scale=1.0. user-scalable=no prevents double-tap zoom on old iOS.
+    Maximum-scale=1 also needed for older iPads.
+  -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Apple PWA meta -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kesari AI" />
+  <!-- Standard theme color (Firefox/Chrome) -->
+  <meta name="theme-color" content="#0d0d1a" />
   <title>Kesari AI — Companion</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    /* ── Variables ─────────────────────────────────────── */
     :root {
-      --bg:         #0d0d1a;
-      --bg-card:    #141425;
-      --bg-input:   #1a1a2e;
-      --accent:     #E85D04;
-      --accent-dim: #E85D0422;
-      --text:       #f0f0f8;
-      --muted:      #888899;
-      --border:     #2a2a3d;
-      --user-bubble:#E85D04;
-      --ai-bubble:  #1e1e35;
-      --radius:     16px;
-      --safe-b:     env(safe-area-inset-bottom, 0px);
+      --bg:          #0d0d1a;
+      --bg-card:     #141425;
+      --bg-input:    #1a1a2e;
+      --accent:      #E85D04;
+      --accent-dim:  rgba(232, 93, 4, 0.13);
+      --text:        #f0f0f8;
+      --muted:       #888899;
+      --border:      #2a2a3d;
+      --user-bubble: #E85D04;
+      --ai-bubble:   #1e1e35;
+      --radius:      16px;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Box model reset ───────────────────────────────── */
+    *, *::before, *::after {
+      -webkit-box-sizing: border-box;
+              box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body {
+    /* ── Root height — old iOS Safari doesn't support dvh.
+       Use min-height 100% trick with JS fallback via --vh. ── */
+    html {
       height: 100%;
+      height: -webkit-fill-available;
+    }
+    body {
+      height: 100%;
+      height: -webkit-fill-available;
       background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%; /* prevent iOS font inflation */
       overflow: hidden;
+      /* Tap highlight off on all touch devices */
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* ── Layout ── */
+    /* ── Layout shell — flex column, full viewport ─────── */
     #app {
+      display: -webkit-box;
+      display: -webkit-flex;
       display: flex;
-      flex-direction: column;
-      height: 100dvh;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -webkit-flex-direction: column;
+              flex-direction: column;
+      /* dvh fallback chain */
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+      height: 100dvh; /* modern browsers */
     }
 
-    /* ── Header ── */
+    /* ── Header ─────────────────────────────────────────── */
     header {
+      display: -webkit-box;
+      display: -webkit-flex;
       display: flex;
-      align-items: center;
-      gap: 12px;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+              align-items: center;
       padding: 14px 18px;
       background: var(--bg-card);
       border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
+      /* safe-area top for notched iPads */
+      padding-top: calc(14px + env(safe-area-inset-top, 0px));
     }
-    .logo { font-size: 22px; }
+    /* gap fallback: margin instead of gap */
+    header > * + * { margin-left: 12px; }
+
+    .logo  { font-size: 22px; line-height: 1; }
     .brand { font-weight: 800; font-size: 18px; }
     .brand span { color: var(--accent); }
+
     #agent-badge {
       margin-left: auto;
       font-size: 11px;
       font-weight: 600;
       color: var(--accent);
       background: var(--accent-dim);
-      border: 1px solid var(--accent)44;
+      border: 1px solid rgba(232,93,4,0.27);
       border-radius: 20px;
       padding: 3px 10px;
       letter-spacing: 0.4px;
-      transition: opacity 0.3s;
+      white-space: nowrap;
+      -webkit-transition: opacity 0.3s;
+              transition: opacity 0.3s;
     }
     #status-dot {
-      width: 8px; height: 8px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: #ef4444;
-      transition: background 0.3s;
-      flex-shrink: 0;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
+      -webkit-transition: background 0.3s;
+              transition: background 0.3s;
     }
     #status-dot.connected { background: #22c55e; }
 
-    /* ── Chat area ── */
+    /* ── Messages area ──────────────────────────────────── */
     #messages {
-      flex: 1;
+      -webkit-box-flex: 1;
+      -webkit-flex: 1;
+              flex: 1;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* momentum scroll on old iOS */
       padding: 18px 16px;
+      display: -webkit-box;
+      display: -webkit-flex;
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-      scroll-behavior: smooth;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -webkit-flex-direction: column;
+              flex-direction: column;
+      -webkit-scroll-behavior: smooth;
+              scroll-behavior: smooth;
     }
+    /* gap fallback via margin */
+    #messages .msg + .msg { margin-top: 12px; }
 
     .msg {
       max-width: 82%;
       padding: 12px 16px;
       border-radius: var(--radius);
-      font-size: 14.5px;
+      /* 16px minimum to prevent iOS auto-zoom on input focus nearby */
+      font-size: 16px;
       line-height: 1.55;
-      animation: pop 0.18s ease;
+      /* pop-in animation — old Safari needs -webkit- */
+      -webkit-animation: pop 0.18s ease;
+              animation: pop 0.18s ease;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      -webkit-hyphens: auto;
+              hyphens: auto;
+    }
+    @-webkit-keyframes pop {
+      from { -webkit-transform: scale(0.94); transform: scale(0.94); opacity: 0; }
+      to   { -webkit-transform: scale(1);    transform: scale(1);    opacity: 1; }
     }
     @keyframes pop {
       from { transform: scale(0.94); opacity: 0; }
@@ -102,23 +170,27 @@
     }
 
     .msg.user {
-      align-self: flex-end;
+      -webkit-align-self: flex-end;
+              align-self: flex-end;
       background: var(--user-bubble);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
     .msg.ai {
-      align-self: flex-start;
+      -webkit-align-self: flex-start;
+              align-self: flex-start;
       background: var(--ai-bubble);
       border: 1px solid var(--border);
       border-bottom-left-radius: 4px;
       white-space: pre-wrap;
     }
     .msg.system-msg {
-      align-self: center;
+      -webkit-align-self: center;
+              align-self: center;
+      max-width: 90%;
       background: transparent;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 13px;
       text-align: center;
       border: 0;
       padding: 4px 0;
@@ -126,85 +198,129 @@
 
     /* typing indicator */
     .typing-dots {
+      display: -webkit-inline-box;
+      display: -webkit-inline-flex;
       display: inline-flex;
-      gap: 4px;
-      align-items: center;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+              align-items: center;
     }
+    .typing-dots span + span { margin-left: 4px; }
     .typing-dots span {
-      width: 6px; height: 6px;
+      width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--muted);
-      animation: blink 1.2s infinite;
+      display: inline-block;
+      -webkit-animation: blink 1.2s infinite;
+              animation: blink 1.2s infinite;
     }
-    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    .typing-dots span:nth-child(2) { -webkit-animation-delay: 0.2s; animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { -webkit-animation-delay: 0.4s; animation-delay: 0.4s; }
+    @-webkit-keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; -webkit-transform: scale(0.9); transform: scale(0.9); }
+      40%           { opacity: 1;   -webkit-transform: scale(1.1); transform: scale(1.1); }
+    }
     @keyframes blink {
       0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
       40%           { opacity: 1;   transform: scale(1.1); }
     }
 
-    /* ── Agent selector ── */
+    /* ── Agent chip bar ──────────────────────────────────── */
     #agent-bar {
+      display: -webkit-box;
+      display: -webkit-flex;
       display: flex;
-      gap: 6px;
       padding: 8px 16px;
       overflow-x: auto;
-      scrollbar-width: none;
-      flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+      /* hide scrollbar: Safari needs -webkit only */
+      -ms-overflow-style: none;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
       border-top: 1px solid var(--border);
       background: var(--bg-card);
     }
     #agent-bar::-webkit-scrollbar { display: none; }
+    /* gap fallback */
+    #agent-bar .agent-chip + .agent-chip { margin-left: 6px; }
 
     .agent-chip {
-      flex-shrink: 0;
-      font-size: 12px;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
+      font-size: 13px;
       font-weight: 600;
-      padding: 5px 12px;
+      padding: 7px 14px;         /* bigger tap target (>44px height total) */
       border-radius: 20px;
       border: 1px solid var(--border);
       background: transparent;
       color: var(--muted);
       cursor: pointer;
-      transition: all 0.18s;
+      -webkit-transition: background 0.18s, border-color 0.18s, color 0.18s;
+              transition: background 0.18s, border-color 0.18s, color 0.18s;
       white-space: nowrap;
+      /* remove default iOS button styling */
+      -webkit-appearance: none;
+              appearance: none;
+      font-family: inherit;
+      /* min touch target width */
+      min-height: 36px;
     }
-    .agent-chip:hover   { border-color: var(--accent44); color: var(--text); }
+    .agent-chip:active  { opacity: 0.75; }
     .agent-chip.active  {
       background: var(--accent-dim);
       border-color: var(--accent);
       color: var(--accent);
     }
 
-    /* ── Input bar ── */
+    /* ── Input bar ────────────────────────────────────────── */
     #input-bar {
+      display: -webkit-box;
+      display: -webkit-flex;
       display: flex;
-      align-items: flex-end;
-      gap: 10px;
-      padding: 12px 16px calc(12px + var(--safe-b));
+      -webkit-box-align: flex-end;
+      -webkit-align-items: flex-end;
+              align-items: flex-end;
+      padding: 12px 16px;
+      /* safe-area bottom for iPads with home-bar */
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       background: var(--bg-card);
       border-top: 1px solid var(--border);
-      flex-shrink: 0;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
     }
+    /* gap fallback */
+    #input-bar > * + * { margin-left: 10px; }
 
     #msg-input {
-      flex: 1;
+      -webkit-box-flex: 1;
+      -webkit-flex: 1;
+              flex: 1;
       background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: 22px;
       color: var(--text);
       font-family: inherit;
-      font-size: 15px;
+      /* 16px minimum — below this iOS Safari zooms the page on focus */
+      font-size: 16px;
       padding: 12px 16px;
       resize: none;
       outline: none;
       max-height: 120px;
       min-height: 48px;
       line-height: 1.4;
-      transition: border-color 0.2s;
+      -webkit-transition: border-color 0.2s;
+              transition: border-color 0.2s;
+      /* remove iOS inner shadow */
+      -webkit-appearance: none;
+              appearance: none;
+      /* scroll inside textarea on old iOS */
+      -webkit-overflow-scrolling: touch;
+      overflow-y: auto;
     }
-    #msg-input:focus { border-color: var(--accent); }
-    #msg-input::placeholder { color: var(--muted); }
+    #msg-input:focus      { border-color: var(--accent); }
+    #msg-input::-webkit-input-placeholder { color: var(--muted); }
+    #msg-input::-moz-placeholder          { color: var(--muted); }
+    #msg-input::placeholder                { color: var(--muted); }
 
     #send-btn {
       width: 48px; height: 48px;
@@ -214,16 +330,47 @@
       color: #fff;
       font-size: 20px;
       cursor: pointer;
-      flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      transition: transform 0.15s, opacity 0.15s;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+              align-items: center;
+      -webkit-box-pack: center;
+      -webkit-justify-content: center;
+              justify-content: center;
+      -webkit-transition: -webkit-transform 0.15s, opacity 0.15s;
+              transition: transform 0.15s, opacity 0.15s;
+      -webkit-appearance: none;
+              appearance: none;
+      /* tap state for old iOS */
+      -webkit-tap-highlight-color: transparent;
     }
-    #send-btn:active  { transform: scale(0.91); }
-    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #send-btn:active   { -webkit-transform: scale(0.91); transform: scale(0.91); }
+    #send-btn:disabled { opacity: 0.4; cursor: default; }
 
-    /* ── Scrollbar ── */
-    #messages::-webkit-scrollbar { width: 4px; }
+    /* ── Scrollbar styling (Chrome/Edge only — Safari ignores) ─ */
+    #messages::-webkit-scrollbar       { width: 4px; }
     #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Tablet / iPad layout tweaks ─────────────────────── */
+    @media (min-width: 600px) {
+      #messages { padding: 24px 24px; }
+      .msg      { font-size: 15px; }
+      #input-bar { padding-left: 24px; padding-right: 24px; }
+      #agent-bar { padding-left: 24px; padding-right: 24px; }
+      header     { padding-left: 24px; padding-right: 24px; }
+    }
+
+    @media (min-width: 768px) {
+      /* Centre content column on large iPads */
+      #messages  { max-width: 760px; width: 100%; margin: 0 auto; padding: 28px 0; }
+      #input-bar { max-width: 760px; width: 100%; margin: 0 auto;
+                   border-left: 0; border-right: 0; }
+      .msg { max-width: 72%; }
+    }
   </style>
 </head>
 <body>
@@ -238,150 +385,192 @@
   </header>
 
   <!-- Messages -->
-  <div id="messages">
+  <div id="messages" role="log" aria-live="polite" aria-label="Chat messages">
     <div class="msg system-msg">Connecting to Kesari AI…</div>
   </div>
 
   <!-- Agent chips -->
-  <div id="agent-bar">
+  <nav id="agent-bar" aria-label="Select agent">
     <button class="agent-chip active" data-agent="">🤖 Auto</button>
     <button class="agent-chip" data-agent="research">🔍 Research</button>
     <button class="agent-chip" data-agent="coding">💻 Coding</button>
     <button class="agent-chip" data-agent="system">⚙️ System</button>
     <button class="agent-chip" data-agent="general">💬 General</button>
-  </div>
+  </nav>
 
   <!-- Input -->
   <div id="input-bar">
-    <textarea id="msg-input" placeholder="Message Kesari AI…" rows="1"></textarea>
-    <button id="send-btn" disabled title="Send">➤</button>
+    <textarea
+      id="msg-input"
+      placeholder="Message Kesari AI…"
+      rows="1"
+      aria-label="Message input"
+      autocomplete="off"
+      autocorrect="on"
+      autocapitalize="sentences"
+      spellcheck="true"
+    ></textarea>
+    <button id="send-btn" disabled title="Send" aria-label="Send message">&#10148;</button>
   </div>
 
 </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────
-  let ws = null;
-  let currentAgent = "";       // "" = auto
-  let aiMsgEl = null;          // current streaming AI bubble
-  let isStreaming = false;
+  // ── --vh fix: compute real viewport height on old iOS ───────
+  // iOS Safari reports wrong window.innerHeight during keyboard slide
+  function setVh() {
+    var vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+  }
+  setVh();
+  window.addEventListener('resize', setVh);
+  // orientationchange fires before resize is settled; delay slightly
+  window.addEventListener('orientationchange', function() {
+    setTimeout(setVh, 300);
+  });
 
-  const messagesEl = document.getElementById("messages");
-  const inputEl    = document.getElementById("msg-input");
-  const sendBtn    = document.getElementById("send-btn");
-  const statusDot  = document.getElementById("status-dot");
-  const agentBadge = document.getElementById("agent-badge");
+  // ── State ──────────────────────────────────────────────────
+  var ws          = null;
+  var currentAgent = '';   // '' = auto
+  var aiMsgEl     = null;
+  var isStreaming  = false;
+
+  var messagesEl = document.getElementById('messages');
+  var inputEl    = document.getElementById('msg-input');
+  var sendBtn    = document.getElementById('send-btn');
+  var statusDot  = document.getElementById('status-dot');
+  var agentBadge = document.getElementById('agent-badge');
 
   // ── Auto-resize textarea ─────────────────────────────────
-  inputEl.addEventListener("input", () => {
-    inputEl.style.height = "auto";
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
-  });
+  function resizeInput() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  }
+  inputEl.addEventListener('input', resizeInput);
 
   // ── Agent chip selection ─────────────────────────────────
-  document.querySelectorAll(".agent-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".agent-chip").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      currentAgent = chip.dataset.agent;
-    });
-  });
+  var chips = document.querySelectorAll('.agent-chip');
+  for (var i = 0; i < chips.length; i++) {
+    (function(chip) {
+      chip.addEventListener('click', function() {
+        for (var j = 0; j < chips.length; j++) chips[j].classList.remove('active');
+        chip.classList.add('active');
+        currentAgent = chip.getAttribute('data-agent');
+      });
+      // Better touch handling on older iOS — touchend fires faster than click
+      chip.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        chip.click();
+      });
+    })(chips[i]);
+  }
 
-  // ── Connect WebSocket ─────────────────────────────────────
+  // ── WebSocket connection ─────────────────────────────────
   function connect() {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${proto}://${location.host}/ws/chat`);
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    try {
+      ws = new WebSocket(proto + '://' + location.host + '/ws/chat');
+    } catch (err) {
+      appendSystemMsg('❌ WebSocket not supported. Use a modern browser.');
+      return;
+    }
 
-    ws.onopen = () => {
-      statusDot.classList.add("connected");
-      statusDot.title = "Connected";
+    ws.onopen = function() {
+      statusDot.className = 'connected';
+      statusDot.title = 'Connected';
       sendBtn.disabled = false;
-      appendSystemMsg("✅ Connected to Kesari AI");
+      appendSystemMsg('✅ Connected to Kesari AI');
     };
 
-    ws.onclose = () => {
-      statusDot.classList.remove("connected");
-      statusDot.title = "Disconnected";
+    ws.onclose = function() {
+      statusDot.className = '';
+      statusDot.title = 'Disconnected';
       sendBtn.disabled = true;
-      appendSystemMsg("⚡ Reconnecting…");
+      appendSystemMsg('⚡ Connection lost. Reconnecting…');
       setTimeout(connect, 2500);
     };
 
-    ws.onerror = () => {
-      appendSystemMsg("❌ Connection error. Retrying…");
+    ws.onerror = function() {
+      appendSystemMsg('❌ Connection error. Retrying…');
     };
 
-    ws.onmessage = (e) => {
-      const event = JSON.parse(e.data);
-      handleEvent(event);
+    ws.onmessage = function(e) {
+      try {
+        var event = JSON.parse(e.data);
+        handleEvent(event);
+      } catch (err) { /* ignore */ }
     };
   }
 
   // ── Handle server events ─────────────────────────────────
   function handleEvent(event) {
-    switch (event.type) {
+    if (event.type === 'agent_selected') {
+      agentBadge.textContent = event.agent || 'GeneralAgent';
 
-      case "agent_selected":
-        agentBadge.textContent = event.agent;
-        break;
+    } else if (event.type === 'token') {
+      if (!aiMsgEl) { aiMsgEl = appendMsg('', 'ai'); }
+      // Remove typing indicator if still present
+      var dots = aiMsgEl.querySelector('.typing-dots');
+      if (dots) { dots.parentNode.removeChild(dots); }
+      // Append raw text (preserve whitespace via pre-wrap in CSS)
+      aiMsgEl.appendChild(document.createTextNode(event.content));
+      scrollToBottom();
 
-      case "token":
-        if (!aiMsgEl) {
-          aiMsgEl = appendMsg("", "ai");
-        }
-        // Remove typing indicator if present
-        const dots = aiMsgEl.querySelector(".typing-dots");
-        if (dots) dots.remove();
-        aiMsgEl.textContent += event.content;
-        scrollToBottom();
-        break;
+    } else if (event.type === 'tool_call') {
+      appendSystemMsg('🔧 Running: ' + (event.name || 'tool') + '…');
 
-      case "tool_call":
-        appendSystemMsg(`🔧 Running: ${event.name}…`);
-        break;
+    } else if (event.type === 'done') {
+      isStreaming  = false;
+      aiMsgEl      = null;
+      sendBtn.disabled = false;
+      inputEl.disabled = false;
+      inputEl.focus();
 
-      case "done":
-        isStreaming = false;
-        aiMsgEl = null;
-        sendBtn.disabled = false;
-        inputEl.disabled = false;
-        inputEl.focus();
-        break;
-
-      case "error":
-        isStreaming = false;
-        aiMsgEl = null;
-        sendBtn.disabled = false;
-        inputEl.disabled = false;
-        appendSystemMsg(`❌ ${event.content}`);
-        break;
+    } else if (event.type === 'error') {
+      isStreaming  = false;
+      aiMsgEl      = null;
+      sendBtn.disabled = false;
+      inputEl.disabled = false;
+      appendSystemMsg('❌ ' + (event.content || 'Unknown error'));
     }
   }
 
   // ── Send message ─────────────────────────────────────────
   function sendMessage() {
-    const text = inputEl.value.trim();
-    if (!text || isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+    var text = inputEl.value.replace(/^\s+|\s+$/g, '');
+    if (!text || isStreaming || !ws || ws.readyState !== 1 /* OPEN */) return;
 
-    appendMsg(text, "user");
-    inputEl.value = "";
-    inputEl.style.height = "auto";
+    appendMsg(text, 'user');
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    resizeInput();
 
     isStreaming = true;
     sendBtn.disabled = true;
     inputEl.disabled = true;
 
     // Show typing indicator
-    aiMsgEl = appendMsg("", "ai");
-    aiMsgEl.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+    aiMsgEl = appendMsg('', 'ai');
+    aiMsgEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
     scrollToBottom();
 
-    ws.send(JSON.stringify({ message: text, agent: currentAgent || null }));
+    ws.send(JSON.stringify({
+      message: text,
+      agent:   currentAgent || null
+    }));
   }
 
-  sendBtn.addEventListener("click", sendMessage);
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  sendBtn.addEventListener('click', sendMessage);
+
+  // touchend on send button for snappier iPad response
+  sendBtn.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    sendMessage();
+  });
+
+  inputEl.addEventListener('keydown', function(e) {
+    // Enter sends on hardware keyboard; shift+Enter = newline
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -389,17 +578,17 @@
 
   // ── DOM helpers ──────────────────────────────────────────
   function appendMsg(text, cls) {
-    const el = document.createElement("div");
-    el.className = `msg ${cls}`;
-    el.textContent = text;
+    var el = document.createElement('div');
+    el.className = 'msg ' + cls;
+    if (text) { el.textContent = text; }
     messagesEl.appendChild(el);
     scrollToBottom();
     return el;
   }
 
   function appendSystemMsg(text) {
-    const el = document.createElement("div");
-    el.className = "msg system-msg";
+    var el = document.createElement('div');
+    el.className = 'msg system-msg';
     el.textContent = text;
     messagesEl.appendChild(el);
     scrollToBottom();
@@ -407,7 +596,10 @@
   }
 
   function scrollToBottom() {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    // requestAnimationFrame prevents scroll jank during layout recalc
+    requestAnimationFrame(function() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
   }
 
   // ── Boot ─────────────────────────────────────────────────

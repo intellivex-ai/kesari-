@@ -17,6 +17,14 @@ from typing import AsyncGenerator, Any
 logger = logging.getLogger(__name__)
 
 
+# Per-agent model overrides — change these to swap models for each specialist
+AGENT_MODELS: dict[str, str] = {
+    "general":  "meta-llama/llama-3.3-70b-instruct:free",
+    "coding":   "qwen/qwen3-coder:free",
+    "research": "stepfun/step-3.5-flash:free",   # quick answer for research
+    "system":   "stepfun/step-3.5-flash:free",   # quick answer for system ops
+}
+
 AGENT_REGISTRY: dict[str, dict] = {
     "research": {
         "name": "ResearchAgent",
@@ -27,6 +35,7 @@ AGENT_REGISTRY: dict[str, dict] = {
             "Use available search/browser tools. Be factual and cite sources."
         ),
         "tool_keywords": ["web_search", "read_url", "screenshot"],
+        "model": AGENT_MODELS["research"],
     },
     "coding": {
         "name": "CodingAgent",
@@ -37,6 +46,7 @@ AGENT_REGISTRY: dict[str, dict] = {
             "Think step-by-step, write the code, then explain what it does."
         ),
         "tool_keywords": ["read_file", "write_file", "run_command"],
+        "model": AGENT_MODELS["coding"],
     },
     "system": {
         "name": "SystemAgent",
@@ -46,6 +56,7 @@ AGENT_REGISTRY: dict[str, dict] = {
             "Your specialty is OS-level automation. Act carefully — always confirm before destructive operations."
         ),
         "tool_keywords": ["run_system_command", "close_application", "set_clipboard", "get_clipboard", "capture_screen"],
+        "model": AGENT_MODELS["system"],
     },
     "general": {
         "name": "GeneralAgent",
@@ -55,6 +66,7 @@ AGENT_REGISTRY: dict[str, dict] = {
             "Be concise, accurate, and friendly."
         ),
         "tool_keywords": [],
+        "model": AGENT_MODELS["general"],
     },
 }
 
@@ -117,25 +129,30 @@ class AgentOrchestrator:
         override_agent: str | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
-        Select agent, set context, and run the workflow.
+        Select agent, set context, and run the workflow with the agent's model.
         Yields the same event dicts as WorkflowEngine.run_workflow().
         """
         agent_key = override_agent or self.select_agent(user_message)
+        # Validate agent key exists
+        if agent_key not in AGENT_REGISTRY:
+            agent_key = "general"
         self._active_agent = agent_key
         agent = AGENT_REGISTRY[agent_key]
-        logger.info(f"AgentOrchestrator: routing to '{agent['name']}'")
+        model = agent.get("model")  # agent-specific model override
+        logger.info(f"AgentOrchestrator: routing to '{agent['name']}' (model={model or 'default'})")
 
         # Yield a meta event so the UI can show which agent is active
         yield {
             "type": "agent_selected",
             "agent": agent["name"],
             "key": agent_key,
+            "model": model,
         }
 
         agent_context = self._build_agent_context(agent_key, extra_context)
 
         async for event in self.workflow_engine.run_workflow(
-            extra_context=agent_context, max_steps=max_steps
+            extra_context=agent_context, max_steps=max_steps, model_override=model
         ):
             yield event
 

@@ -105,6 +105,7 @@ class OpenRouterClient:
         self,
         tools: list[dict] | None = None,
         extra_context: str = "",
+        model_override: str | None = None,
     ) -> AsyncIterator[dict]:
         """
         Stream a chat completion. Yields dicts:
@@ -115,9 +116,10 @@ class OpenRouterClient:
         """
         self._ensure_client()
         messages = self._build_messages(extra_context)
+        active_model = model_override or self.model
 
         kwargs = {
-            "model": self.model,
+            "model": active_model,
             "messages": messages,
             "stream": True,
             "temperature": 0.7,
@@ -218,7 +220,8 @@ class OpenRouterClient:
     async def complete_after_tools(
         self,
         tools: list[dict] | None = None,
+        model_override: str | None = None,
     ) -> AsyncIterator[dict]:
         """Resume streaming after tool results have been added."""
-        async for event in self.stream_chat(tools=tools):
+        async for event in self.stream_chat(tools=tools, model_override=model_override):
             yield event
