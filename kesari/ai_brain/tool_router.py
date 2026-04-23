@@ -77,5 +77,9 @@ class ToolRouter:
         """List all registered tool names."""
         return list(self._tools.keys())
 
+    def get_all_tools(self) -> dict[str, Any]:
+        """Return the internal tools dictionary mapping names to tool instances."""
+        return self._tools
+
     def has_tool(self, name: str) -> bool:
         return name in self._tools

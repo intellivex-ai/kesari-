@@ -96,10 +96,10 @@ class SettingsDialog(QDialog):
         api_layout.setSpacing(12)
         api_layout.setContentsMargins(16, 16, 16, 16)
 
-        self._openrouter_key = QLineEdit(settings.get("openrouter_api_key", ""))
-        self._openrouter_key.setEchoMode(QLineEdit.Password)
-        self._openrouter_key.setPlaceholderText("sk-or-...")
-        api_layout.addRow("OpenRouter API Key:", self._openrouter_key)
+        self._nvidia_key = QLineEdit(settings.get("nvidia_api_key", ""))
+        self._nvidia_key.setEchoMode(QLineEdit.Password)
+        self._nvidia_key.setPlaceholderText("nvapi-...")
+        api_layout.addRow("NVIDIA API Key:", self._nvidia_key)
 
         self._sarvam_key = QLineEdit(settings.get("sarvam_api_key", ""))
         self._sarvam_key.setEchoMode(QLineEdit.Password)
@@ -115,7 +115,7 @@ class SettingsDialog(QDialog):
         model_layout.setContentsMargins(16, 16, 16, 16)
 
         self._provider_combo = QComboBox()
-        self._provider_combo.addItems(["auto", "openrouter", "ollama"])
+        self._provider_combo.addItems(["auto", "nvidia", "ollama"])
         current_provider = settings.get("llm_provider", "auto")
         idx = self._provider_combo.findText(current_provider)
         if idx >= 0:
@@ -124,17 +124,15 @@ class SettingsDialog(QDialog):
 
         self._model_combo = QComboBox()
         self._model_combo.addItems([
-            "openai/gpt-4o",
-            "openai/gpt-4o-mini",
-            "anthropic/claude-3.5-sonnet",
-            "anthropic/claude-3-haiku",
-            "meta-llama/llama-3.1-70b-instruct",
-            "meta-llama/llama-3.1-8b-instruct",
-            "google/gemini-pro-1.5",
-            "google/gemini-flash-1.5",
+            "nvidia/nv-llama-3.1-70b-instruct",
+            "nvidia/nv-llama-3.1-8b-instruct",
+            "meta/llama-3.3-70b-instruct",
+            "meta/llama-3.1-8b-instruct",
+            "google/gemini-1.5-pro",
+            "google/gemini-1.5-flash",
             "mistralai/mistral-large",
         ])
-        current_model = settings.get("default_model", "openai/gpt-4o")
+        current_model = settings.get("default_model", "meta/llama-3.3-70b-instruct")
         self._model_combo.setEditable(True)
         idx = self._model_combo.findText(current_model)
         if idx >= 0:
@@ -227,7 +225,7 @@ class SettingsDialog(QDialog):
         old_theme = settings.get("theme", "dark")
         new_theme = self._theme_combo.currentText()
 
-        settings["openrouter_api_key"] = self._openrouter_key.text().strip()
+        settings["nvidia_api_key"] = self._nvidia_key.text().strip()
         settings["sarvam_api_key"] = self._sarvam_key.text().strip()
         settings["llm_provider"] = self._provider_combo.currentText()
         settings["default_model"] = self._model_combo.currentText().strip()

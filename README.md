@@ -105,13 +105,13 @@ copy .env.example .env
 Edit `.env`:
 
 ```env
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
+NVIDIA_API_KEY=nvapi-your-key-here
 SARVAM_API_KEY=your-sarvam-key-here
-DEFAULT_MODEL=openai/gpt-4o
+DEFAULT_MODEL=meta/llama-3.3-70b-instruct
 ```
 
 **Get your keys:**
-- OpenRouter → https://openrouter.ai/keys
+- NVIDIA AI API → https://build.nvidia.com/explore/llm
 - Sarvam AI → https://dashboard.sarvam.ai/
 
 ### 4. Run
@@ -131,7 +131,8 @@ kesari/
 │   ├── config.py                 # Settings & environment config
 │   │
 │   ├── ai_brain/                 # LLM integration
-│   │   ├── openrouter_client.py  # Streaming + tool calling
+│   │   ├── nvidia_client.py       # NVIDIA NIM API client (streaming + tool calling)
+│   │   ├── ollama_client.py       # Local Ollama support
 │   │   ├── tool_router.py        # Function call dispatcher
 │   │   ├── workflow_engine.py    # Multi-step tool loop
 │   │   ├── agent_orchestrator.py # Multi-agent routing ✨
@@ -289,9 +290,10 @@ def my_function(input: str) -> dict:
 
 | Setting | Default | Description |
 |---|---|---|
-| `openrouter_api_key` | — | LLM API key |
+| `nvidia_api_key` | — | NVIDIA NIM API key |
 | `sarvam_api_key` | — | Voice API key |
-| `default_model` | `openai/gpt-4o` | LLM model |
+| `default_model` | `meta/llama-3.3-70b-instruct` | LLM model |
+| `llm_provider` | `nvidia` | LLM provider (nvidia/ollama) |
 | `tts_language` | `hi-IN` | TTS language |
 | `tts_speaker` | `meera` | TTS voice |
 | `stt_language` | `hi-IN` | STT language |

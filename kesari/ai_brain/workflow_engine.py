@@ -1,6 +1,6 @@
 """
 Kesari AI — Workflow Engine
-A robust orchestrator that iteratively processes multi-step tool calls natively through the OpenRouter client.
+A robust orchestrator that iteratively processes multi-step tool calls natively through the NVIDIA client.
 Handles approval gates for destructive macro actions.
 """
 import logging
@@ -12,13 +12,21 @@ logger = logging.getLogger(__name__)
 DANGEROUS_TOOLS = {
     "run_system_command",
     "close_application",
+    "os_control",
+    "file_system",
 }
 
 class WorkflowEngine:
-    def __init__(self, ai_client, tool_router, audit_logger=None):
+    def __init__(self, ai_client, tool_router, audit_logger=None, auto_mode_callback=None):
         self.ai_client = ai_client
         self.tool_router = tool_router
         self.audit_logger = audit_logger
+        self.auto_mode_callback = auto_mode_callback
+
+    def is_auto_mode(self) -> bool:
+        if self.auto_mode_callback:
+            return self.auto_mode_callback()
+        return False
 
     async def run_workflow(self, extra_context: str, max_steps: int = 5, model_override: str | None = None) -> AsyncGenerator[dict[str, Any], None]:
         """
@@ -61,12 +69,34 @@ class WorkflowEngine:
                 t_id = event["id"]
                 
                 # Check for approval gate
-                if tool_name in DANGEROUS_TOOLS:
-                    yield {"type": "approval_required", "tool_name": tool_name, "arguments": args}
-                    # We expect the generator consumer to inject the approval result
-                    # Wait, async generators can't easily wait for a UI callback inline.
-                    # We will assume auto-approval for now but log it as a risky step unless we wire a synchronous Qt modal.
-                    pass
+                if tool_name in DANGEROUS_TOOLS and not self.is_auto_mode():
+                    yield {
+                        "type": "tool_executing", 
+                        "tool_name": tool_name, 
+                        "step_label": f"Blocked: {tool_name} requires Auto Mode"
+                    }
+                    result = f"BLOCKED BY SAFETY SYSTEM: '{tool_name}' is dangerous. You must ask the user to enable 'Auto Mode' to proceed."
+                    if self.audit_logger:
+                        self.audit_logger.log_execution(tool_name, args, status="blocked")
+                    self.ai_client.add_tool_result(t_id, tool_name, str(result))
+                    continue
+                
+                # Map action types to emojis for the UI ActionStepWidget
+                step_label = f"Using {tool_name}"
+                if tool_name == "os_control":
+                    act = args.get("action", "")
+                    if act == "click": step_label = "🖱️ Clicking on screen"
+                    elif act == "type": step_label = f"⌨️ Typing '{args.get('text', '')}'"
+                    elif act == "press": step_label = f"⌨️ Pressing '{args.get('text', '')}'"
+                    elif act == "open_app": step_label = f"🖥️ Opening '{args.get('app_path_or_name', '')}'"
+                elif tool_name == "file_system":
+                    step_label = f"📁 Managing file '{args.get('path', '')}'"
+                elif tool_name == "browser_automation":
+                    act = args.get("action", "")
+                    if act == "goto": step_label = f"🌐 Navigating to {args.get('url', '')}"
+                    else: step_label = f"🌐 Browser action: {act}"
+
+                yield {"type": "tool_executing", "tool_name": tool_name, "step_label": step_label}
                 
                 try:
                     result = await self.tool_router.execute(tool_name, args)
@@ -78,6 +108,7 @@ class WorkflowEngine:
                         self.audit_logger.log_execution(tool_name, args, status="error", status_message=str(e))
                     
                 self.ai_client.add_tool_result(t_id, tool_name, str(result))
+                yield {"type": "tool_completed", "tool_name": tool_name}
                 
             # Prepare streaming the result follow-up
             stream = self.ai_client.complete_after_tools(tools=tools, model_override=model_override)

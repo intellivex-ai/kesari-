@@ -16,7 +16,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _ENV_PATH = _PROJECT_ROOT / ".env"
 load_dotenv(_ENV_PATH)
 
-SECRET_KEYS = {"openrouter_api_key", "sarvam_api_key", "nvidia_api_key"}
+SECRET_KEYS = {"sarvam_api_key", "nvidia_api_key"}
 
 # ─── Directories ──────────────────────────────────────────────
 APP_DIR = Path.home() / ".kesari_ai"
@@ -26,13 +26,11 @@ DB_FILE = APP_DIR / "memory.db"
 VECTOR_DB_DIR = APP_DIR / "vector_memory"
 
 # ─── API Keys ────────────────────────────────────────────────
-OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 NVIDIA_API_KEY: str     = os.getenv("NVIDIA_API_KEY", "")
 SARVAM_API_KEY: str     = os.getenv("SARVAM_API_KEY", "")
 
 # ─── Defaults ─────────────────────────────────────────────────
 DEFAULT_MODEL: str      = os.getenv("DEFAULT_MODEL", "meta/llama-3.3-70b-instruct")
-OPENROUTER_BASE_URL     = "https://openrouter.ai/api/v1"
 NVIDIA_BASE_URL         = "https://integrate.api.nvidia.com/v1"
 APP_NAME = "Kesari AI"
 APP_VERSION = "1.0.0"
@@ -54,12 +52,8 @@ class Settings:
     """Persistent user settings backed by a JSON file."""
 
     _defaults = {
-        "openrouter_api_key": "",
-        "nvidia_api_key": "",
         "sarvam_api_key": "",
-        "default_model": DEFAULT_MODEL,
-        "llm_provider": os.getenv("LLM_PROVIDER", "nvidia"),  # nvidia | openrouter | ollama | auto
-        "ollama_model": "llama3:8b",
+        "llm_provider": "custom_kesari",
         "tts_language": DEFAULT_TTS_LANGUAGE,
         "tts_speaker": DEFAULT_TTS_SPEAKER,
         "stt_language": DEFAULT_STT_LANGUAGE,
@@ -75,6 +69,8 @@ class Settings:
         "disk_threshold": 95,
         "enable_companion_api": True,
         "companion_api_port": 8765,
+        "enable_ngrok": os.getenv("ENABLE_NGROK", "False").lower() == "true",
+        "ngrok_auth_token": os.getenv("NGROK_AUTH_TOKEN", ""),
     }
 
     def __init__(self):
@@ -119,8 +115,6 @@ class Settings:
                 pass
 
         # Override with env vars if present
-        if OPENROUTER_API_KEY:
-            self._data["openrouter_api_key"] = OPENROUTER_API_KEY
         if NVIDIA_API_KEY:
             self._data["nvidia_api_key"] = NVIDIA_API_KEY
         if SARVAM_API_KEY:

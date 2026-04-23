@@ -155,6 +155,53 @@ async def chat(req: ChatRequest):
     return ChatResponse(reply=full_reply, agent_used=agent_name)
 
 
+# ── Audio Processing ─────────────────────────────────────────
+from fastapi import UploadFile, File
+
+@app.post("/audio", response_model=ChatResponse)
+async def audio_chat(file: UploadFile = File(...)):
+    """Receives voice payload, transcribes it, and routes message to AI."""
+    if not _orchestrator:
+        raise HTTPException(status_code=503, detail="AI services not ready")
+        
+    try:
+        audio_bytes = await file.read()
+        from kesari.voice_engine.sarvam_stt import SarvamSTT
+        from kesari.config import settings
+        
+        stt = SarvamSTT(
+            api_key=settings.get("sarvam_api_key", ""),
+            language=settings.get("stt_language", "hi-IN"),
+        )
+        message = await stt.transcribe(audio_bytes)
+        
+        if not message.strip():
+            # If transcription is totally empty, return gracefully
+            return ChatResponse(reply="", agent_used="STT")
+            
+        _ai_client.add_user_message(message)
+
+        full_reply = ""
+        agent_name = "GeneralAgent"
+
+        async for event in _orchestrator.run(
+            user_message=message,
+        ):
+            if event["type"] == "token":
+                full_reply += event["content"]
+            elif event["type"] == "agent_selected":
+                agent_name = event["agent"]
+            elif event["type"] == "error":
+                raise HTTPException(status_code=500, detail=event["content"])
+
+        return ChatResponse(reply=full_reply, agent_used=agent_name)
+
+    except Exception as e:
+        logger.error(f"Audio processing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 # ── WebSocket Streaming Chat ──────────────────────────────────
 
 @app.websocket("/ws/chat")

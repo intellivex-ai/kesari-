@@ -12,7 +12,7 @@ from kesari.ai_brain.prompts import build_system_messages
 logger = logging.getLogger(__name__)
 
 class OllamaClient:
-    """Client for local Ollama LLM, designed to mirror OpenRouterClient stream semantics."""
+    """Client for local Ollama LLM, designed to mirror NvidiaClient stream semantics."""
 
     def __init__(self, model: str = "llama3"):
         self.model = model

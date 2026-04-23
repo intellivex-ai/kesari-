@@ -351,6 +351,50 @@
     #send-btn:active   { -webkit-transform: scale(0.91); transform: scale(0.91); }
     #send-btn:disabled { opacity: 0.4; cursor: default; }
 
+    #mic-btn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      -webkit-flex-shrink: 0;
+              flex-shrink: 0;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+              align-items: center;
+      -webkit-box-pack: center;
+      -webkit-justify-content: center;
+              justify-content: center;
+      -webkit-transition: -webkit-transform 0.15s, opacity 0.15s, background 0.3s;
+              transition: transform 0.15s, opacity 0.15s, background 0.3s;
+      -webkit-appearance: none;
+              appearance: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #mic-btn:active { -webkit-transform: scale(0.91); transform: scale(0.91); }
+    #mic-btn.recording {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+      color: #ef4444;
+      -webkit-animation: pulse 1.5s infinite;
+              animation: pulse 1.5s infinite;
+    }
+    @-webkit-keyframes pulse {
+      0% { -webkit-box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { -webkit-box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { -webkit-box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
     /* ── Scrollbar styling (Chrome/Edge only — Safari ignores) ─ */
     #messages::-webkit-scrollbar       { width: 4px; }
     #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -400,6 +444,7 @@
 
   <!-- Input -->
   <div id="input-bar">
+    <button id="mic-btn" title="Toggle Microphone" aria-label="Microphone">🎤</button>
     <textarea
       id="msg-input"
       placeholder="Message Kesari AI…"
@@ -438,6 +483,7 @@
   var messagesEl = document.getElementById('messages');
   var inputEl    = document.getElementById('msg-input');
   var sendBtn    = document.getElementById('send-btn');
+  var micBtn     = document.getElementById('mic-btn');
   var statusDot  = document.getElementById('status-dot');
   var agentBadge = document.getElementById('agent-badge');
 
@@ -575,6 +621,71 @@
       sendMessage();
     }
   });
+
+  // ── Microphone logic ───────────────────────────────────────
+  var mediaRecorder = null;
+  var audioChunks = [];
+
+  function toggleMic() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      micBtn.classList.remove('recording');
+      appendSystemMsg('Voice captured, processing…');
+    } else {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        appendSystemMsg('❌ Microphone access not supported or blocked in this browser.');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.start();
+          micBtn.classList.add('recording');
+
+          mediaRecorder.addEventListener('dataavailable', function(e) {
+            audioChunks.push(e.data);
+          });
+
+          mediaRecorder.addEventListener('stop', function() {
+            var audioBlob = new Blob(audioChunks);
+            audioChunks = [];
+            var formData = new FormData();
+            formData.append('file', audioBlob, 'mobile_voice.wav');
+
+            // Send via POST /audio
+            fetch(window.location.origin + '/audio', {
+              method: 'POST',
+              body: formData
+            })
+            .then(function(res) {
+              if(!res.ok) throw new Error('API error ' + res.status);
+              return res.json();
+            })
+            .then(function(data) {
+                if(data.reply) {
+                   appendMsg(data.reply, 'ai');
+                   agentBadge.textContent = data.agent_used || 'General';
+                }
+            })
+            .catch(function(err) {
+                appendSystemMsg('❌ Voice processing failed: ' + err.message);
+            });
+
+            // Stop tracks
+            stream.getTracks().forEach(function(t) { t.stop(); });
+          });
+        })
+        .catch(function(err) {
+           var extraMsg = "";
+           if (err.name === 'NotAllowedError') {
+             extraMsg = " (Check if the URL is HTTPS, or if you explicitly denied permissions)";
+           }
+           appendSystemMsg('❌ Mic access denied: ' + err.message + extraMsg);
+        });
+    }
+  }
+
+  micBtn.addEventListener('click', toggleMic);
 
   // ── DOM helpers ──────────────────────────────────────────
   function appendMsg(text, cls) {

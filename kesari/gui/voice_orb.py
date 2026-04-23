@@ -134,15 +134,23 @@ class VoiceOrb(QWidget):
         painter.setBrush(QBrush(highlight_grad))
         painter.drawEllipse(QPoint(int(cx), int(cy)), int(orb_r), int(orb_r))
 
-        # ── Wave bars (speaking state) ────────────────────
-        if self._state == "speaking":
-            bar_count = 5
-            bar_w = 3
+        # ── Wave bars (listening & speaking state) ────────────────────
+        if self._state in ("listening", "speaking"):
+            bar_count = 5 if self._state == "speaking" else 7
+            bar_w = 3 if self._state == "speaking" else 4
             for i in range(bar_count):
-                h = 8 + 12 * abs(math.sin(self._wave_phase + i * 0.8))
-                bx = cx + (i - bar_count // 2) * 7
+                if self._state == "speaking":
+                    h = 8 + 12 * abs(math.sin(self._wave_phase + i * 0.8))
+                else:
+                    # Responsive real-time waveform for listening
+                    noise = math.sin(self._wave_phase * 2 + i * 1.5)
+                    base_h = 4
+                    audio_h = self._audio_level * 40
+                    h = base_h + audio_h * abs(noise)
+                    
+                bx = cx + (i - bar_count // 2) * (bar_w + 4)
                 by = cy - h / 2
-                painter.setBrush(QColor(255, 255, 255, 180))
+                painter.setBrush(QColor(255, 255, 255, 180 if self._state == "speaking" else 220))
                 painter.drawRoundedRect(int(bx), int(by), bar_w, int(h), 1.5, 1.5)
 
         # ── Processing spinner dots ───────────────────────

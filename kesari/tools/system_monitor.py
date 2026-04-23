@@ -58,6 +58,10 @@ class SystemMonitor:
             self._thread.join(timeout=2)
         logger.info("SystemMonitor stopped")
 
+    def is_alive(self) -> bool:
+        """Check if the monitor thread is currently running."""
+        return self._thread is not None and self._thread.is_alive()
+
     def get_snapshot(self) -> dict:
         """Return current system resource values synchronously."""
         return {
